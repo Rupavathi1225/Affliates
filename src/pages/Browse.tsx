@@ -9,6 +9,7 @@ const Browse = () => {
   const [selectedNetwork, setSelectedNetwork] = useState<string | null>(null);
   const [selectedGeo, setSelectedGeo] = useState<string | null>(null);
   const [selectedVertical, setSelectedVertical] = useState<string | null>(null);
+  const [selectedOfferCategory, setSelectedOfferCategory] = useState<string>("🔝 Top Offers");
 
   const networks = [
     "All", "1 Click Wonder", "1win Partners", "1xBet Partners", "1xBit Affiliate Program", 
@@ -24,14 +25,16 @@ const Browse = () => {
     "Crypto", "BizOpp", "Forex", "Mobile", "CPL", "SOI", "Dating", "Nutra"
   ];
 
-  const offers = [
+  const allOffers = [
+    // Top/Popular Offers
     {
       id: 1,
       logo: "https://images.unsplash.com/photo-1633409361618-c73427e4e206?w=40&h=40&fit=crop&crop=center",
       title: "Girl4love - SOI - CPA - Desktop & Mobile - Tier 1 - US, AU, UK, NZ",
       network: "AdsEmpire",
       tags: ["Dating", "Mobile", "SOI", "US", "AU", "GB", "NZ"],
-      payout: "€ 2.40"
+      payout: "€ 2.40",
+      category: "Dating"
     },
     {
       id: 2,
@@ -39,57 +42,148 @@ const Browse = () => {
       title: "VulkanSpiele - Stream (PL)",
       network: "Ace Partners",
       tags: ["Gambling", "PL"],
-      payout: "€ 110.00"
+      payout: "€ 110.00",
+      category: "Gambling"
     },
     {
       id: 3,
-      logo: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=40&h=40&fit=crop&crop=center",
-      title: "Mes tests et avis - Merveilles du monde FR - SOI *PREFILL*",
-      network: "Ray Advertising",
-      tags: ["SOI", "FR"],
-      payout: "€ 0.85"
-    },
-    {
-      id: 4,
-      logo: "https://images.unsplash.com/photo-1551650975-87deedd944c3?w=40&h=40&fit=crop&crop=center",
-      title: "NetRdv SOI (FR, BE) (web+mob)",
-      network: "Paysafe",
-      tags: ["Dating", "Mobile", "Adult", "SOI", "BE", "FR"],
-      payout: "$ 1.80"
-    },
-    {
-      id: 5,
-      logo: "https://images.unsplash.com/photo-1493612276216-ee3925520721?w=40&h=40&fit=crop&crop=center",
-      title: "ZoomFlirts - SOI - 6 Geos",
-      network: "CrakRevenue",
-      tags: ["Dating", "Adult", "SOI", "6 Geos"],
-      payout: "$ 3.19"
-    },
-    {
-      id: 6,
-      logo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=center",
-      title: "StartACareerToday - Quick Hire Jobs - (US)",
-      network: "Affmine",
-      tags: ["Job", "US"],
-      payout: "$ 2.10"
-    },
-    {
-      id: 7,
-      logo: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=center",
-      title: "Captcha Survey (Android, Google Chrome) - CPL [US,CA] - CPL",
-      network: "Zeydoo",
-      tags: ["Mobile", "Android", "Finance", "Survey", "US", "CA"],
-      payout: "$ 0.02"
-    },
-    {
-      id: 8,
       logo: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=40&h=40&fit=crop&crop=center",
       title: "Wealth Expert Dutch 22189",
       network: "Algo-Affiliates",
       tags: ["Crypto", "BizOpp", "Forex", "WW"],
-      payout: "$ 600.00"
+      payout: "$ 600.00",
+      category: "Crypto"
+    },
+    // Nutra Offers
+    {
+      id: 4,
+      logo: "https://images.unsplash.com/photo-1559757175-0eb30cd8c063?w=40&h=40&fit=crop&crop=center",
+      title: "KetoSlim Pro - Weight Loss Supplement - US/CA",
+      network: "NutraAffiliates",
+      tags: ["Nutra", "Weight Loss", "US", "CA"],
+      payout: "$ 45.00",
+      category: "Nutra"
+    },
+    {
+      id: 5,
+      logo: "https://images.unsplash.com/photo-1471193945509-9ad0617afabf?w=40&h=40&fit=crop&crop=center",
+      title: "Collagen Beauty Formula - Anti-Aging Cream",
+      network: "HealthOffers",
+      tags: ["Nutra", "Beauty", "Anti-Aging", "EU"],
+      payout: "€ 38.50",
+      category: "Nutra"
+    },
+    // Crypto Offers
+    {
+      id: 6,
+      logo: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=40&h=40&fit=crop&crop=center",
+      title: "Bitcoin Revolution - Auto Trading Platform",
+      network: "CryptoMax",
+      tags: ["Crypto", "Trading", "Bitcoin", "WW"],
+      payout: "$ 800.00",
+      category: "Crypto"
+    },
+    {
+      id: 7,
+      logo: "https://images.unsplash.com/photo-1622630998477-20aa696ecb05?w=40&h=40&fit=crop&crop=center",
+      title: "Ethereum Profit - Investment Platform",
+      network: "BlockchainAds",
+      tags: ["Crypto", "Investment", "Ethereum", "Tier1"],
+      payout: "$ 1200.00",
+      category: "Crypto"
+    },
+    // Gambling Offers
+    {
+      id: 8,
+      logo: "https://images.unsplash.com/photo-1596838132731-3301c3fd4317?w=40&h=40&fit=crop&crop=center",
+      title: "Royal Casino - New Player Bonus 500%",
+      network: "GamingNetwork",
+      tags: ["Gambling", "Casino", "Bonus", "EU"],
+      payout: "€ 150.00",
+      category: "Gambling"
+    },
+    {
+      id: 9,
+      logo: "https://images.unsplash.com/photo-1606092195730-5d7b9af1efc5?w=40&h=40&fit=crop&crop=center",
+      title: "Sports Betting Pro - Live Odds",
+      network: "BetPartners",
+      tags: ["Gambling", "Sports", "Live Betting", "US"],
+      payout: "$ 200.00",
+      category: "Gambling"
+    },
+    // Game Offers
+    {
+      id: 10,
+      logo: "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=40&h=40&fit=crop&crop=center",
+      title: "Mobile Legends RPG - Install & Play",
+      network: "GameAds",
+      tags: ["Game", "RPG", "Mobile", "Install"],
+      payout: "$ 8.50",
+      category: "Game"
+    },
+    {
+      id: 11,
+      logo: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=40&h=40&fit=crop&crop=center",
+      title: "Racing Thunder - Car Racing Game",
+      network: "PlayNetwork",
+      tags: ["Game", "Racing", "Mobile", "Action"],
+      payout: "$ 12.00",
+      category: "Game"
+    },
+    // COD Offers  
+    {
+      id: 12,
+      logo: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=40&h=40&fit=crop&crop=center",
+      title: "Premium Kitchen Set - Cash on Delivery",
+      network: "CODMasters",
+      tags: ["COD", "Kitchen", "Home", "India"],
+      payout: "₹ 250.00",
+      category: "COD"
+    },
+    {
+      id: 13,
+      logo: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=40&h=40&fit=crop&crop=center",
+      title: "Fashion Jewelry Collection - COD Available",
+      network: "EcomAffiliates",
+      tags: ["COD", "Fashion", "Jewelry", "Women"],
+      payout: "₹ 180.00",
+      category: "COD"
+    },
+    // Sweepstakes Offers
+    {
+      id: 14,
+      logo: "https://images.unsplash.com/photo-1607706189992-eae578626c86?w=40&h=40&fit=crop&crop=center",
+      title: "iPhone 15 Pro Giveaway - Enter Now",
+      network: "SweepNetwork",
+      tags: ["Sweepstakes", "iPhone", "Giveaway", "US"],
+      payout: "$ 15.00",
+      category: "Sweepstakes"
+    },
+    {
+      id: 15,
+      logo: "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=40&h=40&fit=crop&crop=center",
+      title: "Win $10,000 Cash Prize - Weekly Draw",
+      network: "PrizePartners",
+      tags: ["Sweepstakes", "Cash", "Prize", "Weekly"],
+      payout: "$ 25.00",
+      category: "Sweepstakes"
     }
   ];
+
+  const offerCategories = ["🔝 Top Offers", "All", "Nutra", "Crypto", "Gambling", "Game", "COD", "Sweepstakes"];
+
+  const getFilteredOffers = () => {
+    if (selectedOfferCategory === "🔝 Top Offers") {
+      // Return top performing offers (first 3 from each category)
+      return allOffers.slice(0, 8);
+    } else if (selectedOfferCategory === "All") {
+      return allOffers;
+    } else {
+      return allOffers.filter(offer => offer.category === selectedOfferCategory);
+    }
+  };
+
+  const offers = getFilteredOffers();
 
   const premiumNetworks = [
     {
@@ -225,17 +319,18 @@ const Browse = () => {
         {/* Main Content Area */}
         <div className="flex-1">
           {/* Top Offers Filter */}
-          <div className="flex items-center gap-4 mb-6">
-            <Button variant="outline" size="sm" className="bg-muted text-foreground">
-              🔝 Top Offers
-            </Button>
-            <Button variant="ghost" size="sm">All</Button>
-            <Button variant="ghost" size="sm">Nutra</Button>
-            <Button variant="ghost" size="sm">Crypto</Button>
-            <Button variant="ghost" size="sm">Gambling</Button>
-            <Button variant="ghost" size="sm">Game</Button>
-            <Button variant="ghost" size="sm">COD</Button>
-            <Button variant="ghost" size="sm">Sweepstakes</Button>
+          <div className="flex items-center gap-4 mb-6 flex-wrap">
+            {offerCategories.map((category) => (
+              <Button 
+                key={category}
+                variant={selectedOfferCategory === category ? "outline" : "ghost"}
+                size="sm" 
+                className={selectedOfferCategory === category ? "bg-muted text-foreground" : ""}
+                onClick={() => setSelectedOfferCategory(category)}
+              >
+                {category}
+              </Button>
+            ))}
           </div>
 
           {/* Offers List */}
