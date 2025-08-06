@@ -12,17 +12,19 @@ const Index = () => {
           Connect with top affiliate networks and grow your business. Submit your network to get started with our platform.
         </p>
         <div className="space-y-4 sm:space-y-0 sm:space-x-4 sm:flex sm:justify-center">
-          <Link to="/submit-network">
+          <Link to="/browse">
             <Button className="bg-gradient-primary hover:bg-primary-hover shadow-button text-primary-foreground font-semibold text-lg px-8 py-4 rounded-xl transition-all duration-300 hover:scale-105">
+              Browse Networks
+            </Button>
+          </Link>
+          <Link to="/submit-network">
+            <Button 
+              variant="outline" 
+              className="border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground font-semibold text-lg px-8 py-4 rounded-xl transition-all duration-300"
+            >
               Submit Your Network
             </Button>
           </Link>
-          <Button 
-            variant="outline" 
-            className="border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground font-semibold text-lg px-8 py-4 rounded-xl transition-all duration-300"
-          >
-            Browse Networks
-          </Button>
         </div>
       </div>
     </div>
