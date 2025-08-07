@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { ChevronDown, Search } from "lucide-react";
 
 const Browse = () => {
+  const navigate = useNavigate();
   const [selectedNetwork, setSelectedNetwork] = useState<string | null>(null);
   const [selectedGeo, setSelectedGeo] = useState<string | null>(null);
   const [selectedVertical, setSelectedVertical] = useState<string | null>(null);
@@ -358,7 +360,11 @@ const Browse = () => {
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-bold text-primary mb-1">{offer.payout}</div>
-                    <Button size="sm" className="bg-primary hover:bg-primary-hover text-white">
+                    <Button 
+                      size="sm" 
+                      className="bg-primary hover:bg-primary-hover text-white"
+                      onClick={() => navigate(`/offer/${offer.id}`)}
+                    >
                       View
                     </Button>
                   </div>
