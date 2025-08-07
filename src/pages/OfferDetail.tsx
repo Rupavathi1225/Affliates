@@ -16,23 +16,100 @@ const OfferDetail = () => {
   // Sample offer data - in real app this would come from API
   const offer = {
     id: id,
-    title: "Summer Break Gaming Challenge",
-    company: "GamePro Studios",
-    payout: "$5.62",
-    category: "Game",
-    description: "Complete exciting gaming challenges and earn rewards. Reach level 50 in our summer gaming tournament.",
-    requirements: "Reach level 50",
-    countries: ["US", "UK", "CA", "AU"],
-    network: "ClickDealer",
+    title: "Fashion Jewelry Collection - COD Available",
+    company: "EcomAffiliates",
+    payout: "₹ 180.00",
+    category: "COD",
+    description: "Premium fashion jewelry collection with cash on delivery option. High-quality accessories for women with attractive designs and competitive pricing.",
+    requirements: "Complete purchase with COD",
+    countries: ["IN", "PK", "BD"],
+    network: "EcomAffiliates",
     trackingUrl: "https://track.example.com/click?offer=" + id,
-    restrictions: "18+ only, one account per user",
-    conversionFlow: "Install game → Complete registration → Reach level 50 → Get reward",
+    restrictions: "18+ only, valid ID required for delivery",
+    conversionFlow: "Visit site → Select products → Add to cart → Choose COD → Complete order → Get commission",
     payoutDetails: {
-      cpa: "$5.62",
-      revShare: "15%",
-      minPayout: "$100"
+      cpa: "₹ 180.00",
+      revShare: "12%",
+      minPayout: "₹ 5000"
     }
   };
+
+  // Banner offers data
+  const bannerOffers = [
+    {
+      id: 1,
+      title: "Summer Break",
+      subtitle: "Reach level 50",
+      payout: "$5.62",
+      category: "GAME",
+      gradient: "from-blue-500 to-purple-600",
+      image: "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=80&h=80&fit=crop&crop=center"
+    },
+    {
+      id: 2,
+      title: "Ever Legion",
+      subtitle: "Complete Act 3",
+      payout: "$3.30",
+      category: "GAME", 
+      gradient: "from-red-500 to-orange-600",
+      image: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=80&h=80&fit=crop&crop=center"
+    },
+    {
+      id: 3,
+      title: "Colorwood Sort",
+      subtitle: "Defeat Calamity",
+      payout: "$6.02",
+      category: "GAME",
+      gradient: "from-green-500 to-teal-600",
+      image: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=80&h=80&fit=crop&crop=center"
+    },
+    {
+      id: 4,
+      title: "Smash Party",
+      subtitle: "Unlock Inazuma",
+      payout: "$11.59",
+      category: "GAME",
+      gradient: "from-purple-500 to-pink-600",
+      image: "https://images.unsplash.com/photo-1633409361618-c73427e4e206?w=80&h=80&fit=crop&crop=center"
+    },
+    {
+      id: 5,
+      title: "Sea Block 1010",
+      subtitle: "Clear Forgotten Hall",
+      payout: "$3.02",
+      category: "GAME",
+      gradient: "from-cyan-500 to-blue-600",
+      image: "https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=80&h=80&fit=crop&crop=center"
+    },
+    {
+      id: 6,
+      title: "Multi Dice",
+      subtitle: "Win 5 matches",
+      payout: "$26.00",
+      category: "GAME",
+      gradient: "from-yellow-500 to-red-600",
+      image: "https://images.unsplash.com/photo-1596838132731-3301c3fd4317?w=80&h=80&fit=crop&crop=center"
+    },
+    {
+      id: 7,
+      title: "Vegas Keno",
+      subtitle: "Get 10 kills",
+      payout: "$48.11",
+      category: "GAME",
+      gradient: "from-indigo-500 to-purple-600",
+      image: "https://images.unsplash.com/photo-1606092195730-5d7b9af1efc5?w=80&h=80&fit=crop&crop=center"
+    }
+  ];
+
+  // User profiles data for top banner
+  const userProfiles = [
+    { name: "Nalmastak", score: "0.48", status: "HOLLY" },
+    { name: "Kambuh", score: "71", status: "AWET" },
+    { name: "rodolf", score: "473", status: "ABGATE" },
+    { name: "gyyttritt", score: "225", status: "ABGATE" },
+    { name: "eagible", score: "262", status: "ABGATE" },
+    { name: "eagible", score: "150", status: "ABGATE" }
+  ];
 
   const handleNotification = () => {
     toast({
@@ -104,7 +181,64 @@ const OfferDetail = () => {
         </div>
       </div>
 
-      {/* Banner Section */}
+      {/* User Profiles Banner */}
+      <div className="container mx-auto px-4 py-4">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+          {userProfiles.map((user, index) => (
+            <Card key={index} className="bg-gradient-to-r from-gray-800/90 to-gray-900/90 border-gray-700/50 text-white">
+              <CardContent className="p-3 text-center">
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full mx-auto mb-2 flex items-center justify-center">
+                  <span className="text-xs font-bold">{user.name.charAt(0)}</span>
+                </div>
+                <h4 className="text-xs font-semibold mb-1">{user.name}</h4>
+                <p className="text-lg font-bold text-green-400">{user.score}</p>
+                <p className="text-xs text-gray-400">{user.status}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* Gaming Offers Banner Section */}
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-white">GAMING OFFERS</h2>
+          <Button 
+            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg"
+            onClick={() => navigate("/browse")}
+          >
+            View All
+          </Button>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8">
+          {bannerOffers.map((bannerOffer) => (
+            <Card 
+              key={bannerOffer.id} 
+              className={`bg-gradient-to-br ${bannerOffer.gradient} border-0 text-white cursor-pointer hover:scale-105 transition-transform duration-200`}
+              onClick={() => navigate(`/offer/${bannerOffer.id}`)}
+            >
+              <CardContent className="p-4 text-center relative overflow-hidden">
+                <div className="absolute top-2 right-2">
+                  <Badge className="bg-purple-600 text-white text-xs px-2 py-1">
+                    {bannerOffer.category}
+                  </Badge>
+                </div>
+                <img 
+                  src={bannerOffer.image} 
+                  alt={bannerOffer.title}
+                  className="w-12 h-12 rounded-lg mx-auto mb-3 object-cover"
+                />
+                <h3 className="font-bold text-sm mb-1">{bannerOffer.title}</h3>
+                <p className="text-xs mb-2 opacity-90">{bannerOffer.subtitle}</p>
+                <p className="text-lg font-bold text-green-300">{bannerOffer.payout}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* Main Banner Section */}
       <div className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <Card className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-200/50 dark:border-purple-700/50">
