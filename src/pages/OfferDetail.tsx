@@ -199,44 +199,6 @@ const OfferDetail = () => {
         </div>
       </div>
 
-      {/* Gaming Offers Banner Section */}
-      <div className="container mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white">GAMING OFFERS</h2>
-          <Button 
-            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg"
-            onClick={() => navigate("/browse")}
-          >
-            View All
-          </Button>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8">
-          {bannerOffers.map((bannerOffer) => (
-            <Card 
-              key={bannerOffer.id} 
-              className={`bg-gradient-to-br ${bannerOffer.gradient} border-0 text-white cursor-pointer hover:scale-105 transition-transform duration-200`}
-              onClick={() => navigate(`/offer/${bannerOffer.id}`)}
-            >
-              <CardContent className="p-4 text-center relative overflow-hidden">
-                <div className="absolute top-2 right-2">
-                  <Badge className="bg-purple-600 text-white text-xs px-2 py-1">
-                    {bannerOffer.category}
-                  </Badge>
-                </div>
-                <img 
-                  src={bannerOffer.image} 
-                  alt={bannerOffer.title}
-                  className="w-12 h-12 rounded-lg mx-auto mb-3 object-cover"
-                />
-                <h3 className="font-bold text-sm mb-1">{bannerOffer.title}</h3>
-                <p className="text-xs mb-2 opacity-90">{bannerOffer.subtitle}</p>
-                <p className="text-lg font-bold text-green-300">{bannerOffer.payout}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
 
       {/* Main Banner Section */}
       <div className="container mx-auto px-4 py-6">
