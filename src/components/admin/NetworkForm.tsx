@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Network, MasterData } from "@/types/admin";
+import * as XLSX from "xlsx";
 
 interface NetworkFormProps {
   onSuccess: () => void;
@@ -19,6 +20,7 @@ interface NetworkFormProps {
 const NetworkForm = ({ onSuccess, masterData, network }: NetworkFormProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [fileLoading, setFileLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: network?.name || "",
     type: network?.type || "",
@@ -33,6 +35,7 @@ const NetworkForm = ({ onSuccess, masterData, network }: NetworkFormProps) => {
     priority_order: network?.priority_order || 0,
   });
 
+  // Handle single form submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -45,30 +48,31 @@ const NetworkForm = ({ onSuccess, masterData, network }: NetworkFormProps) => {
         logo_url: formData.logo_url || null,
         website_link: formData.website_link || null,
         payment_frequency: formData.payment_frequency || null,
-        payment_methods: formData.payment_methods ? formData.payment_methods.split(",").map(s => s.trim()) : [],
-        categories: formData.categories ? formData.categories.split(",").map(s => s.trim()) : [],
-        tags: formData.tags ? formData.tags.split(",").map(s => s.trim()) : [],
+        payment_methods: formData.payment_methods
+          ? formData.payment_methods.split(",").map(s => s.trim())
+          : [],
+        categories: formData.categories
+          ? formData.categories.split(",").map(s => s.trim())
+          : [],
+        tags: formData.tags
+          ? formData.tags.split(",").map(s => s.trim())
+          : [],
         is_active: formData.is_active,
         priority_order: formData.priority_order,
       };
 
       let result;
       if (network) {
-        result = await supabase
-          .from('networks')
-          .update(networkData)
-          .eq('id', network.id);
+        result = await supabase.from("networks").update(networkData).eq("id", network.id);
       } else {
-        result = await supabase
-          .from('networks')
-          .insert([networkData]);
+        result = await supabase.from("networks").insert([networkData]);
       }
 
       if (result.error) throw result.error;
 
       toast({
         title: "Success",
-        description: `Network ${network ? 'updated' : 'created'} successfully`,
+        description: `Network ${network ? "updated" : "created"} successfully`,
       });
 
       if (!network) {
@@ -89,10 +93,10 @@ const NetworkForm = ({ onSuccess, masterData, network }: NetworkFormProps) => {
 
       onSuccess();
     } catch (error) {
-      console.error('Error:', error);
+      console.error("Error:", error);
       toast({
         title: "Error",
-        description: `Failed to ${network ? 'update' : 'create'} network`,
+        description: `Failed to ${network ? "update" : "create"} network`,
         variant: "destructive",
       });
     } finally {
@@ -100,12 +104,87 @@ const NetworkForm = ({ onSuccess, masterData, network }: NetworkFormProps) => {
     }
   };
 
+  // Handle file upload
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setFileLoading(true);
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result as string;
+        const wb = XLSX.read(bstr, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data: any[] = XLSX.utils.sheet_to_json(ws);
+
+        // Map data from sheet to match your DB fields
+        const formattedData = data.map(row => ({
+          name: row.name || "",
+          type: row.type || "",
+          description: row.description || null,
+          logo_url: row.logo_url || null,
+          website_link: row.website_link || null,
+          payment_frequency: row.payment_frequency || null,
+          payment_methods: row.payment_methods
+            ? String(row.payment_methods).split(",").map((s: string) => s.trim())
+            : [],
+          categories: row.categories
+            ? String(row.categories).split(",").map((s: string) => s.trim())
+            : [],
+          tags: row.tags
+            ? String(row.tags).split(",").map((s: string) => s.trim())
+            : [],
+          is_active: row.is_active === "true" || row.is_active === true,
+          priority_order: Number(row.priority_order) || 0,
+        }));
+
+        const { error } = await supabase.from("networks").insert(formattedData);
+        if (error) throw error;
+
+        toast({
+          title: "Upload Successful",
+          description: `${formattedData.length} networks added from file`,
+        });
+
+        onSuccess();
+      } catch (err) {
+        console.error("File upload error:", err);
+        toast({
+          title: "Error",
+          description: "Failed to process the file",
+          variant: "destructive",
+        });
+      } finally {
+        setFileLoading(false);
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{network ? 'Edit Network' : 'Add New Network'}</CardTitle>
+        <CardTitle>{network ? "Edit Network" : "Add New Network"}</CardTitle>
       </CardHeader>
       <CardContent>
+        {/* File upload section */}
+        {!network && (
+          <div className="mb-4">
+            <Label htmlFor="file_upload">Bulk Upload (CSV/XLSX)</Label>
+            <Input
+              id="file_upload"
+              type="file"
+              accept=".csv, .xlsx"
+              onChange={handleFileUpload}
+              disabled={fileLoading}
+            />
+            {fileLoading && <p className="text-sm text-gray-500">Uploading...</p>}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -237,7 +316,7 @@ const NetworkForm = ({ onSuccess, masterData, network }: NetworkFormProps) => {
           </div>
 
           <Button type="submit" disabled={loading} className="w-full">
-            {loading ? "Saving..." : `${network ? 'Update' : 'Create'} Network`}
+            {loading ? "Saving..." : `${network ? "Update" : "Create"} Network`}
           </Button>
         </form>
       </CardContent>

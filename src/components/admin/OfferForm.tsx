@@ -5,10 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Network, Offer, MasterData } from "@/types/admin";
+import * as XLSX from "xlsx";
 
 interface OfferFormProps {
   onSuccess: () => void;
@@ -20,6 +27,8 @@ interface OfferFormProps {
 const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [fileLoading, setFileLoading] = useState(false);
+
   const [formData, setFormData] = useState({
     name: offer?.name || "",
     network_id: offer?.network_id || "",
@@ -109,6 +118,105 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
       setLoading(false);
     }
   };
+const handleGoogleSheetImport = async () => {
+  setFileLoading(true);
+  try {
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQmdaMr7n9hPynxTIDOlwD4zcb_cH35l88dq_Y21S4thuvTjfhntD_l4P9PNjI02cFJ3g0LEFI0dZsf/pub?gid=0&single=true&output=csv";
+
+    const response = await fetch(CSV_URL);
+    const csvText = await response.text();
+
+    const workbook = XLSX.read(csvText, { type: "string" });
+    const sheetName = workbook.SheetNames[0];
+    const jsonData: any[] = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+    const formattedData = jsonData.map((row) => ({
+      name: row.name || row.Name || "",
+      network_id: row.network_id || row.NetworkID || "",
+      type: row.type || row.Type || "",
+      payout_amount: parseFloat(row.payout_amount) || 0,
+      payout_currency: row.payout_currency || "USD",
+      devices: row.devices ? row.devices.split(",").map((d: string) => d.trim()) : [],
+      vertical: row.vertical || "",
+      geo_targets: row.geo_targets ? row.geo_targets.split(",").map((g: string) => g.trim()) : [],
+      tags: row.tags ? row.tags.split(",").map((t: string) => t.trim()) : [],
+      image_url: row.image_url || "",
+      landing_page_url: row.landing_page_url || "",
+      is_active: row.is_active?.toString().toLowerCase() === "true",
+      is_featured: row.is_featured?.toString().toLowerCase() === "true",
+      priority_order: parseInt(row.priority_order) || 0,
+    }));
+
+    const { error } = await supabase.from("offers").insert(formattedData);
+    if (error) throw error;
+
+    toast({
+      title: "Success",
+      description: "Offers imported successfully from Google Sheet",
+    });
+
+    onSuccess();
+  } catch (error) {
+    console.error("Google Sheet import error:", error);
+    toast({
+      title: "Error",
+      description: "Failed to import offers from Google Sheet",
+      variant: "destructive",
+    });
+  } finally {
+    setFileLoading(false);
+  }
+};
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setFileLoading(true);
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet);
+
+      const formattedData = jsonData.map((row) => ({
+        name: row.name || row.Name || "",
+        network_id: row.network_id || row.NetworkID || "",
+        type: row.type || row.Type || "",
+        payout_amount: parseFloat(row.payout_amount) || 0,
+        payout_currency: row.payout_currency || "USD",
+        devices: row.devices ? row.devices.split(",").map((d: string) => d.trim()) : [],
+        vertical: row.vertical || "",
+        geo_targets: row.geo_targets ? row.geo_targets.split(",").map((g: string) => g.trim()) : [],
+        tags: row.tags ? row.tags.split(",").map((t: string) => t.trim()) : [],
+        image_url: row.image_url || "",
+        landing_page_url: row.landing_page_url || "",
+        is_active: row.is_active?.toString().toLowerCase() === "true",
+        is_featured: row.is_featured?.toString().toLowerCase() === "true",
+        priority_order: parseInt(row.priority_order) || 0,
+      }));
+
+      const { error } = await supabase.from("offers").insert(formattedData);
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Offers uploaded successfully from file",
+      });
+
+      onSuccess();
+    } catch (error) {
+      console.error("File upload error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to upload offers from file",
+        variant: "destructive",
+      });
+    } finally {
+      setFileLoading(false);
+      if (event.target) event.target.value = ""; // reset file input
+    }
+  };
 
   return (
     <Card>
@@ -116,8 +224,36 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
         <CardTitle>{offer ? 'Edit Offer' : 'Add New Offer'}</CardTitle>
       </CardHeader>
       <CardContent>
+        {/* Bulk Upload Section - Only for creating new offers */}
+        {!offer && (
+  <div className="mb-4 space-y-2">
+    <Label>Bulk Upload Options</Label>
+    <Input
+      id="file_upload"
+      type="file"
+      accept=".csv, .xlsx"
+      onChange={handleFileUpload}
+      disabled={fileLoading}
+    />
+    <Button
+      type="button"
+      onClick={handleGoogleSheetImport}
+      disabled={fileLoading}
+      className="w-full"
+    >
+      {fileLoading ? "Importing..." : "Import from Google Sheet"}
+    </Button>
+    {fileLoading && (
+      <p className="text-sm text-gray-500 mt-1">Processing...</p>
+    )}
+  </div>
+)}
+
+
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Your existing form fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Offer name */}
             <div>
               <Label htmlFor="name">Offer Name</Label>
               <Input
@@ -127,7 +263,7 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
                 required
               />
             </div>
-
+            {/* Network */}
             <div>
               <Label htmlFor="network_id">Network</Label>
               <Select
@@ -146,7 +282,7 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
                 </SelectContent>
               </Select>
             </div>
-
+            {/* Offer Type */}
             <div>
               <Label htmlFor="type">Offer Type</Label>
               <Select
@@ -165,7 +301,7 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
                 </SelectContent>
               </Select>
             </div>
-
+            {/* Vertical */}
             <div>
               <Label htmlFor="vertical">Vertical</Label>
               <Select
@@ -184,7 +320,7 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
                 </SelectContent>
               </Select>
             </div>
-
+            {/* Payout Amount */}
             <div>
               <Label htmlFor="payout_amount">Payout Amount</Label>
               <Input
@@ -195,7 +331,7 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
                 onChange={(e) => setFormData({ ...formData, payout_amount: parseFloat(e.target.value) || 0 })}
               />
             </div>
-
+            {/* Payout Currency */}
             <div>
               <Label htmlFor="payout_currency">Payout Currency</Label>
               <Select
@@ -214,7 +350,7 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
                 </SelectContent>
               </Select>
             </div>
-
+            {/* Image URL */}
             <div>
               <Label htmlFor="image_url">Image URL</Label>
               <Input
@@ -224,7 +360,7 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
                 onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
               />
             </div>
-
+            {/* Landing Page URL */}
             <div>
               <Label htmlFor="landing_page_url">Landing Page URL</Label>
               <Input
@@ -234,7 +370,7 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
                 onChange={(e) => setFormData({ ...formData, landing_page_url: e.target.value })}
               />
             </div>
-
+            {/* Priority Order */}
             <div>
               <Label htmlFor="priority_order">Priority Order</Label>
               <Input
@@ -246,6 +382,7 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
             </div>
           </div>
 
+          {/* Devices */}
           <div>
             <Label htmlFor="devices">Devices (comma-separated)</Label>
             <Input
@@ -256,6 +393,7 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
             />
           </div>
 
+          {/* Geo Targets */}
           <div>
             <Label htmlFor="geo_targets">Geo Targets (comma-separated country codes)</Label>
             <Input
@@ -266,6 +404,7 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
             />
           </div>
 
+          {/* Tags */}
           <div>
             <Label htmlFor="tags">Tags (comma-separated)</Label>
             <Input
@@ -276,6 +415,7 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
             />
           </div>
 
+          {/* Switches */}
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
               <Switch
@@ -285,7 +425,6 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
               />
               <Label htmlFor="is_active">Active</Label>
             </div>
-
             <div className="flex items-center space-x-2">
               <Switch
                 id="is_featured"
