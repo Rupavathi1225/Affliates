@@ -14,7 +14,191 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      audit_logs: {
+        Row: {
+          action: string
+          changes: Json | null
+          created_at: string
+          doc_id: string | null
+          doc_type: string | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          changes?: Json | null
+          created_at?: string
+          doc_id?: string | null
+          doc_type?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          changes?: Json | null
+          created_at?: string
+          doc_id?: string | null
+          doc_type?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      master_data: {
+        Row: {
+          created_at: string
+          currencies: string[] | null
+          geo_list: Json | null
+          id: string
+          network_types: string[] | null
+          offer_types: string[] | null
+          payment_frequencies: string[] | null
+          updated_at: string
+          verticals: string[] | null
+        }
+        Insert: {
+          created_at?: string
+          currencies?: string[] | null
+          geo_list?: Json | null
+          id?: string
+          network_types?: string[] | null
+          offer_types?: string[] | null
+          payment_frequencies?: string[] | null
+          updated_at?: string
+          verticals?: string[] | null
+        }
+        Update: {
+          created_at?: string
+          currencies?: string[] | null
+          geo_list?: Json | null
+          id?: string
+          network_types?: string[] | null
+          offer_types?: string[] | null
+          payment_frequencies?: string[] | null
+          updated_at?: string
+          verticals?: string[] | null
+        }
+        Relationships: []
+      }
+      networks: {
+        Row: {
+          categories: string[] | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          logo_url: string | null
+          name: string
+          payment_frequency: string | null
+          payment_methods: string[] | null
+          priority_order: number | null
+          tags: string[] | null
+          type: string
+          updated_at: string
+          website_link: string | null
+        }
+        Insert: {
+          categories?: string[] | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name: string
+          payment_frequency?: string | null
+          payment_methods?: string[] | null
+          priority_order?: number | null
+          tags?: string[] | null
+          type: string
+          updated_at?: string
+          website_link?: string | null
+        }
+        Update: {
+          categories?: string[] | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name?: string
+          payment_frequency?: string | null
+          payment_methods?: string[] | null
+          priority_order?: number | null
+          tags?: string[] | null
+          type?: string
+          updated_at?: string
+          website_link?: string | null
+        }
+        Relationships: []
+      }
+      offers: {
+        Row: {
+          created_at: string
+          devices: string[] | null
+          geo_targets: string[] | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          is_featured: boolean
+          landing_page_url: string | null
+          name: string
+          network_id: string
+          payout_amount: number | null
+          payout_currency: string | null
+          priority_order: number | null
+          tags: string[] | null
+          type: string
+          updated_at: string
+          vertical: string | null
+        }
+        Insert: {
+          created_at?: string
+          devices?: string[] | null
+          geo_targets?: string[] | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          is_featured?: boolean
+          landing_page_url?: string | null
+          name: string
+          network_id: string
+          payout_amount?: number | null
+          payout_currency?: string | null
+          priority_order?: number | null
+          tags?: string[] | null
+          type: string
+          updated_at?: string
+          vertical?: string | null
+        }
+        Update: {
+          created_at?: string
+          devices?: string[] | null
+          geo_targets?: string[] | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          is_featured?: boolean
+          landing_page_url?: string | null
+          name?: string
+          network_id?: string
+          payout_amount?: number | null
+          payout_currency?: string | null
+          priority_order?: number | null
+          tags?: string[] | null
+          type?: string
+          updated_at?: string
+          vertical?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offers_network_id_fkey"
+            columns: ["network_id"]
+            isOneToOne: false
+            referencedRelation: "networks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
