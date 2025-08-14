@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client"; // Adjusted import path to a common relative path
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,10 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Network, Offer, MasterData } from "@/types/admin";
-import * as XLSX from "xlsx";
+// The direct import for xlsx is removed, as it's loaded via CDN
+// import * as XLSX from "xlsx"; 
+
+declare const XLSX: any; // Declare XLSX to avoid TypeScript errors if loaded from CDN
 
 interface OfferFormProps {
   onSuccess: () => void;
@@ -29,6 +32,17 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
   const [loading, setLoading] = useState(false);
   const [fileLoading, setFileLoading] = useState(false);
 
+  // Load XLSX from CDN if it's not already loaded
+  useEffect(() => {
+    if (typeof XLSX === 'undefined') {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js';
+      script.onload = () => console.log('XLSX loaded from CDN');
+      script.onerror = (e) => console.error('Error loading XLSX:', e);
+      document.head.appendChild(script);
+    }
+  }, []);
+
   const [formData, setFormData] = useState({
     name: offer?.name || "",
     network_id: offer?.network_id || "",
@@ -36,7 +50,7 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
     payout_amount: offer?.payout_amount || 0,
     payout_currency: offer?.payout_currency || "USD",
     devices: offer?.devices?.join(", ") || "",
-    vertical: offer?.vertical || "",
+    vertical: Array.isArray(offer?.vertical) ? offer?.vertical.join(", ") : (offer?.vertical || ""),
     geo_targets: offer?.geo_targets?.join(", ") || "",
     tags: offer?.tags?.join(", ") || "",
     image_url: offer?.image_url || "",
@@ -58,7 +72,7 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
         payout_amount: formData.payout_amount || null,
         payout_currency: formData.payout_currency,
         devices: formData.devices ? formData.devices.split(",").map(s => s.trim()) : [],
-        vertical: formData.vertical || null,
+        vertical: formData.vertical ? formData.vertical.split(",").map(s => s.trim()) : [],
         geo_targets: formData.geo_targets ? formData.geo_targets.split(",").map(s => s.trim()) : [],
         tags: formData.tags ? formData.tags.split(",").map(s => s.trim()) : [],
         image_url: formData.image_url || null,
@@ -118,55 +132,66 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
       setLoading(false);
     }
   };
-const handleGoogleSheetImport = async () => {
-  setFileLoading(true);
-  try {
-    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQmdaMr7n9hPynxTIDOlwD4zcb_cH35l88dq_Y21S4thuvTjfhntD_l4P9PNjI02cFJ3g0LEFI0dZsf/pub?gid=0&single=true&output=csv";
 
-    const response = await fetch(CSV_URL);
-    const csvText = await response.text();
+  const handleGoogleSheetImport = async () => {
+    setFileLoading(true);
+    try {
+      if (typeof XLSX === 'undefined') {
+        console.error("XLSX is not loaded. Please wait or check CDN.");
+        toast({
+          title: "Error",
+          description: "Spreadsheet library not loaded. Please try again.",
+          variant: "destructive",
+        });
+        setFileLoading(false);
+        return;
+      }
+      const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQmdaMr7n9hPynxTIDOlwD4zcb_cH35l88dq_Y21S4thuvTjfhntD_l4P9PNjI02cFJ3g0LEFI0dZsf/pub?gid=0&single=true&output=csv";
 
-    const workbook = XLSX.read(csvText, { type: "string" });
-    const sheetName = workbook.SheetNames[0];
-    const jsonData: any[] = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+      const response = await fetch(CSV_URL);
+      const csvText = await response.text();
 
-    const formattedData = jsonData.map((row) => ({
-      name: row.name || row.Name || "",
-      network_id: row.network_id || row.NetworkID || "",
-      type: row.type || row.Type || "",
-      payout_amount: parseFloat(row.payout_amount) || 0,
-      payout_currency: row.payout_currency || "USD",
-      devices: row.devices ? row.devices.split(",").map((d: string) => d.trim()) : [],
-      vertical: row.vertical || "",
-      geo_targets: row.geo_targets ? row.geo_targets.split(",").map((g: string) => g.trim()) : [],
-      tags: row.tags ? row.tags.split(",").map((t: string) => t.trim()) : [],
-      image_url: row.image_url || "",
-      landing_page_url: row.landing_page_url || "",
-      is_active: row.is_active?.toString().toLowerCase() === "true",
-      is_featured: row.is_featured?.toString().toLowerCase() === "true",
-      priority_order: parseInt(row.priority_order) || 0,
-    }));
+      const workbook = XLSX.read(csvText, { type: "string" });
+      const sheetName = workbook.SheetNames[0];
+      const jsonData: any[] = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-    const { error } = await supabase.from("offers").insert(formattedData);
-    if (error) throw error;
+      const formattedData = jsonData.map((row) => ({
+        name: row.name || row.Name || "",
+        network_id: row.network_id || row.NetworkID || "",
+        type: row.type || row.Type || "",
+        payout_amount: parseFloat(row.payout_amount) || 0,
+        payout_currency: row.payout_currency || "USD",
+        devices: row.devices ? row.devices.split(",").map((d: string) => d.trim()) : [],
+        vertical: row.vertical ? row.vertical.split(",").map((v: string) => v.trim()) : [],
+        geo_targets: row.geo_targets ? row.geo_targets.split(",").map((g: string) => g.trim()) : [],
+        tags: row.tags ? row.tags.split(",").map((t: string) => t.trim()) : [],
+        image_url: row.image_url || "",
+        landing_page_url: row.landing_page_url || "",
+        is_active: row.is_active?.toString().toLowerCase() === "true",
+        is_featured: row.is_featured?.toString().toLowerCase() === "true",
+        priority_order: parseInt(row.priority_order) || 0,
+      }));
 
-    toast({
-      title: "Success",
-      description: "Offers imported successfully from Google Sheet",
-    });
+      const { error } = await supabase.from("offers").insert(formattedData);
+      if (error) throw error;
 
-    onSuccess();
-  } catch (error) {
-    console.error("Google Sheet import error:", error);
-    toast({
-      title: "Error",
-      description: "Failed to import offers from Google Sheet",
-      variant: "destructive",
-    });
-  } finally {
-    setFileLoading(false);
-  }
-};
+      toast({
+        title: "Success",
+        description: "Offers imported successfully from Google Sheet",
+      });
+
+      onSuccess();
+    } catch (error) {
+      console.error("Google Sheet import error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to import offers from Google Sheet",
+        variant: "destructive",
+      });
+    } finally {
+      setFileLoading(false);
+    }
+  };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -174,6 +199,16 @@ const handleGoogleSheetImport = async () => {
 
     setFileLoading(true);
     try {
+      if (typeof XLSX === 'undefined') {
+        console.error("XLSX is not loaded. Please wait or check CDN.");
+        toast({
+          title: "Error",
+          description: "Spreadsheet library not loaded. Please try again.",
+          variant: "destructive",
+        });
+        setFileLoading(false);
+        return;
+      }
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -186,7 +221,7 @@ const handleGoogleSheetImport = async () => {
         payout_amount: parseFloat(row.payout_amount) || 0,
         payout_currency: row.payout_currency || "USD",
         devices: row.devices ? row.devices.split(",").map((d: string) => d.trim()) : [],
-        vertical: row.vertical || "",
+        vertical: row.vertical ? row.vertical.split(",").map((v: string) => v.trim()) : [],
         geo_targets: row.geo_targets ? row.geo_targets.split(",").map((g: string) => g.trim()) : [],
         tags: row.tags ? row.tags.split(",").map((t: string) => t.trim()) : [],
         image_url: row.image_url || "",
@@ -301,24 +336,15 @@ const handleGoogleSheetImport = async () => {
                 </SelectContent>
               </Select>
             </div>
-            {/* Vertical */}
+            {/* Vertical - Changed from Select to Input */}
             <div>
-              <Label htmlFor="vertical">Vertical</Label>
-              <Select
+              <Label htmlFor="vertical">Vertical (comma-separated)</Label>
+              <Input
+                id="vertical"
                 value={formData.vertical}
-                onValueChange={(value) => setFormData({ ...formData, vertical: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select vertical" />
-                </SelectTrigger>
-                <SelectContent>
-                  {masterData?.verticals.map((vertical) => (
-                    <SelectItem key={vertical} value={vertical}>
-                      {vertical}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(e) => setFormData({ ...formData, vertical: e.target.value })}
+                placeholder="Nutra, Dating, Gaming"
+              />
             </div>
             {/* Payout Amount */}
             <div>

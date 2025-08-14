@@ -1,323 +1,258 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";// Adjusted import path
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ChevronDown, Search } from "lucide-react";
+import { useToast } from "@/hooks/use-toast"; // Assuming useToast is available
+
+// Define types for Network and Offer based on your Supabase schema
+// You might already have these defined in "@/types/admin"
+interface Network {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  logo_url: string;
+  website_link: string;
+  payment_frequency: string;
+  payment_methods: string[];
+  categories: string[];
+  tags: string[];
+  is_active: boolean;
+  is_featured: boolean; // Ensure this property is available
+  priority_order: number;
+}
+
+interface Offer {
+  id: string;
+  name: string;
+  network_id: string; // Ensure this is present to link to network
+  type: string;
+  payout_amount: number;
+  payout_currency: string;
+  devices: string[];
+  vertical: string;
+  geo_targets: string[];
+  tags: string[];
+  image_url: string;
+  landing_page_url: string;
+  is_active: boolean;
+  is_featured: boolean;
+  priority_order: number;
+  // Relationship to network, assuming it's fetched directly
+  networks?: {
+    name: string;
+    logo_url: string;
+  };
+}
 
 const Browse = () => {
   const navigate = useNavigate();
-  const [selectedNetwork, setSelectedNetwork] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const [selectedNetworkFilter, setSelectedNetworkFilter] = useState<string | null>(null);
   const [selectedGeo, setSelectedGeo] = useState<string | null>(null);
   const [selectedVertical, setSelectedVertical] = useState<string | null>(null);
   const [selectedOfferCategory, setSelectedOfferCategory] = useState<string>("🔝 Top Offers");
 
-  const networks = [
-    "All", "1 Click Wonder", "1win Partners", "1xBet Partners", "1xBit Affiliate Program", 
-    "1xSlot Partners", "249 Media", "2QL", "2x2 Media"
-  ];
+  const [allOffers, setAllOffers] = useState<Offer[]>([]);
+  const [allNetworks, setAllNetworks] = useState<Network[]>([]);
+  const [offersCountByNetwork, setOffersCountByNetwork] = useState<Record<string, number>>({});
+  const [loadingOffers, setLoadingOffers] = useState(true);
+  const [loadingNetworks, setLoadingNetworks] = useState(true);
 
-  const geos = [
-    "Worldwide", "Afghanistan", "Aland Islands", "Albania", "Algeria", 
-    "American Samoa", "Andorra"
-  ];
+  // Fetch all active offers from Supabase
+  useEffect(() => {
+    const fetchOffers = async () => {
+      setLoadingOffers(true);
+      try {
+        const { data, error } = await supabase
+          .from('offers')
+          .select(`*, networks (name, logo_url)`) // Select all offer fields and joined network name/logo
+          .eq('is_active', true); // Only fetch active offers
 
-  const verticals = [
-    "Crypto", "BizOpp", "Forex", "Mobile", "CPL", "SOI", "Dating", "Nutra"
-  ];
+        if (error) throw error;
+        setAllOffers(data || []);
 
-  const allOffers = [
-    // Top/Popular Offers
-    {
-      id: 1,
-      logo: "https://images.unsplash.com/photo-1633409361618-c73427e4e206?w=40&h=40&fit=crop&crop=center",
-      title: "Girl4love - SOI - CPA - Desktop & Mobile - Tier 1 - US, AU, UK, NZ",
-      network: "AdsEmpire",
-      tags: ["Dating", "Mobile", "SOI", "US", "AU", "GB", "NZ"],
-      payout: "€ 2.40",
-      category: "Dating"
-    },
-    {
-      id: 2,
-      logo: "https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=40&h=40&fit=crop&crop=center",
-      title: "VulkanSpiele - Stream (PL)",
-      network: "Ace Partners",
-      tags: ["Gambling", "PL"],
-      payout: "€ 110.00",
-      category: "Gambling"
-    },
-    {
-      id: 3,
-      logo: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=40&h=40&fit=crop&crop=center",
-      title: "Wealth Expert Dutch 22189",
-      network: "Algo-Affiliates",
-      tags: ["Crypto", "BizOpp", "Forex", "WW"],
-      payout: "$ 600.00",
-      category: "Crypto"
-    },
-    // Nutra Offers
-    {
-      id: 4,
-      logo: "https://images.unsplash.com/photo-1559757175-0eb30cd8c063?w=40&h=40&fit=crop&crop=center",
-      title: "KetoSlim Pro - Weight Loss Supplement - US/CA",
-      network: "NutraAffiliates",
-      tags: ["Nutra", "Weight Loss", "US", "CA"],
-      payout: "$ 45.00",
-      category: "Nutra"
-    },
-    {
-      id: 5,
-      logo: "https://images.unsplash.com/photo-1471193945509-9ad0617afabf?w=40&h=40&fit=crop&crop=center",
-      title: "Collagen Beauty Formula - Anti-Aging Cream",
-      network: "HealthOffers",
-      tags: ["Nutra", "Beauty", "Anti-Aging", "EU"],
-      payout: "€ 38.50",
-      category: "Nutra"
-    },
-    // Crypto Offers
-    {
-      id: 6,
-      logo: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=40&h=40&fit=crop&crop=center",
-      title: "Bitcoin Revolution - Auto Trading Platform",
-      network: "CryptoMax",
-      tags: ["Crypto", "Trading", "Bitcoin", "WW"],
-      payout: "$ 800.00",
-      category: "Crypto"
-    },
-    {
-      id: 7,
-      logo: "https://images.unsplash.com/photo-1622630998477-20aa696ecb05?w=40&h=40&fit=crop&crop=center",
-      title: "Ethereum Profit - Investment Platform",
-      network: "BlockchainAds",
-      tags: ["Crypto", "Investment", "Ethereum", "Tier1"],
-      payout: "$ 1200.00",
-      category: "Crypto"
-    },
-    // Gambling Offers
-    {
-      id: 8,
-      logo: "https://images.unsplash.com/photo-1596838132731-3301c3fd4317?w=40&h=40&fit=crop&crop=center",
-      title: "Royal Casino - New Player Bonus 500%",
-      network: "GamingNetwork",
-      tags: ["Gambling", "Casino", "Bonus", "EU"],
-      payout: "€ 150.00",
-      category: "Gambling"
-    },
-    {
-      id: 9,
-      logo: "https://images.unsplash.com/photo-1606092195730-5d7b9af1efc5?w=40&h=40&fit=crop&crop=center",
-      title: "Sports Betting Pro - Live Odds",
-      network: "BetPartners",
-      tags: ["Gambling", "Sports", "Live Betting", "US"],
-      payout: "$ 200.00",
-      category: "Gambling"
-    },
-    // Game Offers
-    {
-      id: 10,
-      logo: "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=40&h=40&fit=crop&crop=center",
-      title: "Mobile Legends RPG - Install & Play",
-      network: "GameAds",
-      tags: ["Game", "RPG", "Mobile", "Install"],
-      payout: "$ 8.50",
-      category: "Game"
-    },
-    {
-      id: 11,
-      logo: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=40&h=40&fit=crop&crop=center",
-      title: "Racing Thunder - Car Racing Game",
-      network: "PlayNetwork",
-      tags: ["Game", "Racing", "Mobile", "Action"],
-      payout: "$ 12.00",
-      category: "Game"
-    },
-    // COD Offers  
-    {
-      id: 12,
-      logo: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=40&h=40&fit=crop&crop=center",
-      title: "Premium Kitchen Set - Cash on Delivery",
-      network: "CODMasters",
-      tags: ["COD", "Kitchen", "Home", "India"],
-      payout: "₹ 250.00",
-      category: "COD"
-    },
-    {
-      id: 13,
-      logo: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=40&h=40&fit=crop&crop=center",
-      title: "Fashion Jewelry Collection - COD Available",
-      network: "EcomAffiliates",
-      tags: ["COD", "Fashion", "Jewelry", "Women"],
-      payout: "₹ 180.00",
-      category: "COD"
-    },
-    // Sweepstakes Offers
-    {
-      id: 14,
-      logo: "https://images.unsplash.com/photo-1607706189992-eae578626c86?w=40&h=40&fit=crop&crop=center",
-      title: "iPhone 15 Pro Giveaway - Enter Now",
-      network: "SweepNetwork",
-      tags: ["Sweepstakes", "iPhone", "Giveaway", "US"],
-      payout: "$ 15.00",
-      category: "Sweepstakes"
-    },
-    {
-      id: 15,
-      logo: "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=40&h=40&fit=crop&crop=center",
-      title: "Win $10,000 Cash Prize - Weekly Draw",
-      network: "PrizePartners",
-      tags: ["Sweepstakes", "Cash", "Prize", "Weekly"],
-      payout: "$ 25.00",
-      category: "Sweepstakes"
-    }
-  ];
+        // Calculate offer counts by network
+        const counts: Record<string, number> = {};
+        (data || []).forEach(offer => {
+          if (offer.network_id) {
+            counts[offer.network_id] = (counts[offer.network_id] || 0) + 1;
+          }
+        });
+        setOffersCountByNetwork(counts);
 
-  const offerCategories = ["🔝 Top Offers", "All", "Nutra", "Crypto", "Gambling", "Game", "COD", "Sweepstakes"];
+      } catch (error: any) {
+        console.error("Error fetching offers:", error.message);
+        toast({
+          title: "Error",
+          description: "Failed to load offers.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingOffers(false);
+      }
+    };
+    fetchOffers();
+  }, [toast]);
+
+  // Fetch all active networks from Supabase for the sidebar
+  useEffect(() => {
+    const fetchNetworks = async () => {
+      setLoadingNetworks(true);
+      try {
+        const { data, error } = await supabase
+          .from('networks')
+          .select('*')
+          .eq('is_active', true) // Only fetch active networks
+          .order('priority_order', { ascending: false }); // Order by priority
+
+        if (error) throw error;
+        setAllNetworks(data || []);
+      } catch (error: any) {
+        console.error("Error fetching networks:", error.message);
+        toast({
+          title: "Error",
+          description: "Failed to load networks.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingNetworks(false);
+      }
+    };
+    fetchNetworks();
+  }, [toast]);
+
+  // Derive unique categories, geos, and verticals from fetched data
+  const networksOptions = ["All", ...new Set(allNetworks.map(n => n.name))];
+  const geosOptions = ["Worldwide", ...new Set(allOffers.flatMap(o => o.geo_targets))];
+  const verticalsOptions = ["All", ...new Set(allOffers.map(o => o.vertical))];
+  const offerCategories = ["🔝 Top Offers", "All", ...new Set(allOffers.map(o => o.vertical))]; // Assuming vertical maps to category
 
   const getFilteredOffers = () => {
-    if (selectedOfferCategory === "🔝 Top Offers") {
-      // Return top performing offers (first 3 from each category)
-      return allOffers.slice(0, 8);
-    } else if (selectedOfferCategory === "All") {
-      return allOffers;
-    } else {
-      return allOffers.filter(offer => offer.category === selectedOfferCategory);
+    let filtered = allOffers.filter(offer => offer.is_active);
+
+    // Filter by selected network
+    if (selectedNetworkFilter && selectedNetworkFilter !== "All") {
+      filtered = filtered.filter(offer => offer.networks?.name === selectedNetworkFilter);
     }
+
+    // Filter by selected geo
+    if (selectedGeo && selectedGeo !== "Worldwide") {
+      filtered = filtered.filter(offer => offer.geo_targets.includes(selectedGeo));
+    }
+
+    // Filter by selected vertical
+    if (selectedVertical && selectedVertical !== "All") {
+      filtered = filtered.filter(offer => offer.vertical === selectedVertical);
+    }
+
+    // Filter by offer category (vertical)
+    if (selectedOfferCategory === "🔝 Top Offers") {
+      // For "Top Offers", sort by priority_order and featured status
+      return filtered
+        .sort((a, b) => {
+          if (a.is_featured && !b.is_featured) return -1;
+          if (!a.is_featured && b.is_featured) return 1;
+          return (b.priority_order || 0) - (a.priority_order || 0);
+        })
+        .slice(0, 8); // Return top 8 offers
+    } else if (selectedOfferCategory !== "All") {
+      filtered = filtered.filter(offer => offer.vertical === selectedOfferCategory);
+    }
+    
+    // Default sorting for "All" or other categories
+    return filtered.sort((a, b) => (b.priority_order || 0) - (a.priority_order || 0));
   };
 
-  const offers = getFilteredOffers();
+  const offersToDisplay = getFilteredOffers();
+  const networksToDisplay = allNetworks.filter(n => n.is_active); 
 
-  const premiumNetworks = [
-    {
-      id: 1,
-      logo: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=48&h=48&fit=crop&crop=center",
-      name: "ClickDealer",
-      category: "Smartlink",
-      subcategory: "Leadgen",
-      offers: "8 offers",
-      frequency: "Weekly, Bi-weekly"
-    },
-    {
-      id: 2,
-      logo: "https://images.unsplash.com/photo-1551650975-87deedd944c3?w=48&h=48&fit=crop&crop=center",
-      name: "Traffic Light",
-      category: "Nutra",
-      subcategory: "Direct Advertiser",
-      offers: "2183 offers +15",
-      frequency: "Upon Request"
-    },
-    {
-      id: 3,
-      logo: "https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=48&h=48&fit=crop&crop=center",
-      name: "Royal Partners",
-      category: "Casino",
-      subcategory: "Betting, Gambling",
-      offers: "14 offers",
-      frequency: "Weekly, Monthly"
-    },
-    {
-      id: 4,
-      logo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=48&h=48&fit=crop&crop=center",
-      name: "Affmine",
-      category: "PIN Submit",
-      subcategory: "CPI, CPE",
-      offers: "500 offers +28",
-      frequency: "Bi-Weekly, Weekly"
-    },
-    {
-      id: 5,
-      logo: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=center",
-      name: "Algo-Affiliates",
-      category: "Crypto",
-      subcategory: "Forex",
-      offers: "100000 offers +4",
-      frequency: "Weekly for volume"
-    },
-    {
-      id: 6,
-      logo: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=48&h=48&fit=crop&crop=center",
-      name: "CrakRevenue",
-      category: "Adult",
-      subcategory: "CAM, Dating",
-      offers: "608 offers",
-      frequency: "Net-30, Net-15"
-    }
-  ];
+  const FilterDropdown = ({ title, options, selected, onSelect }: any) => {
+    const [searchTerm, setSearchTerm] = useState("");
+    const filteredOptions = options.filter((option: string) =>
+      option.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
-  const FilterDropdown = ({ title, options, selected, onSelect }: any) => (
-    <div className="relative group">
-      <Button 
-        variant="outline" 
-        className="flex items-center gap-2 px-4 py-2 bg-white border-input-border hover:bg-muted transition-colors"
-      >
-        <span className="text-sm font-medium">{selected || title}</span>
-        <ChevronDown className="w-4 h-4" />
-      </Button>
-      <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-input-border rounded-lg shadow-lg z-50 hidden group-hover:block">
-        <div className="p-2">
-          <div className="relative mb-2">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input 
-              placeholder={`Search ${title.toLowerCase()}`}
-              className="pl-10 h-8 text-sm"
-            />
-          </div>
-          <div className="max-h-64 overflow-y-auto">
-            {options.map((option: string, idx: number) => (
-              <div
-                key={idx}
-                className="flex items-center justify-between px-3 py-2 hover:bg-muted cursor-pointer rounded text-sm"
-                onClick={() => onSelect(option)}
-              >
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    className="w-4 h-4"
-                    checked={selected === option}
-                    readOnly
-                  />
-                  {option}
-                </label>
-                {option !== "All" && option !== "Worldwide" && option !== "Crypto" && (
-                  <span className="text-xs text-muted-foreground">
-                    {Math.floor(Math.random() * 100000) + 1000}
-                  </span>
-                )}
-              </div>
-            ))}
+    return (
+      <div className="relative group">
+        <Button 
+          variant="outline" 
+          className="flex items-center gap-2 px-4 py-2 bg-white border-input-border hover:bg-muted transition-colors"
+        >
+          <span className="text-sm font-medium">{selected || title}</span>
+          <ChevronDown className="w-4 h-4" />
+        </Button>
+        <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-input-border rounded-lg shadow-lg z-50 hidden group-hover:block">
+          <div className="p-2">
+            <div className="relative mb-2">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input 
+                placeholder={`Search ${title.toLowerCase()}`}
+                className="pl-10 h-8 text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="max-h-64 overflow-y-auto">
+              {filteredOptions.map((option: string, idx: number) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between px-3 py-2 hover:bg-muted cursor-pointer rounded text-sm"
+                  onClick={() => {
+                    onSelect(option);
+                    // Optionally reset search term or close dropdown
+                  }}
+                >
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="w-4 h-4"
+                      checked={selected === option}
+                      readOnly
+                    />
+                    {option}
+                  </label>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-background">
       {/* Header with Filters */}
       <div className="bg-white border-b border-input-border px-6 py-4">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <FilterDropdown 
             title="Networks" 
-            options={networks}
-            selected={selectedNetwork}
-            onSelect={setSelectedNetwork}
+            options={networksOptions}
+            selected={selectedNetworkFilter}
+            onSelect={setSelectedNetworkFilter}
           />
           <FilterDropdown 
             title="Geos" 
-            options={geos}
+            options={geosOptions}
             selected={selectedGeo}
             onSelect={setSelectedGeo}
           />
           <FilterDropdown 
             title="Verticals" 
-            options={verticals}
+            options={verticalsOptions}
             selected={selectedVertical}
             onSelect={setSelectedVertical}
           />
         </div>
       </div>
 
-      <div className="flex gap-6 p-6">
+      <div className="flex flex-col lg:flex-row gap-6 p-6">
         {/* Main Content Area */}
         <div className="flex-1">
           {/* Top Offers Filter */}
@@ -337,78 +272,91 @@ const Browse = () => {
 
           {/* Offers List */}
           <div className="space-y-4">
-            {offers.map((offer) => (
-              <Card key={offer.id} className="p-4 hover:shadow-md transition-shadow bg-white">
-                <div className="flex items-center gap-4">
-                  <img 
-                    src={offer.logo} 
-                    alt="Network Logo" 
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
-                  <div className="flex-1">
-                    <h3 className="font-medium text-foreground mb-1">{offer.title}</h3>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm text-muted-foreground">{offer.network}</span>
-                      <div className="flex gap-1 flex-wrap">
-                        {offer.tags.map((tag, idx) => (
-                          <Badge key={idx} variant="secondary" className="text-xs px-2 py-0.5">
-                            #{tag}
-                          </Badge>
-                        ))}
+            {loadingOffers ? (
+              <div className="text-center py-8 text-muted-foreground">Loading offers...</div>
+            ) : offersToDisplay.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">No offers found.</div>
+            ) : (
+              offersToDisplay.map((offer) => (
+                <Card key={offer.id} className="p-4 hover:shadow-md transition-shadow bg-white">
+                  <div className="flex items-center gap-4">
+                    <img 
+                      src={offer.networks?.logo_url || `https://placehold.co/40x40/E0E0E0/ADADAD?text=${offer.networks?.name.charAt(0) || 'N'}`}
+                      alt={offer.networks?.name || "Network Logo"} 
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                    <div className="flex-1">
+                      <h3 className="font-medium text-foreground mb-1">{offer.name}</h3>
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <span className="text-sm text-muted-foreground">{offer.networks?.name || "Unknown Network"}</span>
+                        <div className="flex gap-1 flex-wrap">
+                          {offer.tags.map((tag, idx) => (
+                            <Badge key={idx} variant="secondary" className="text-xs px-2 py-0.5">
+                              #{tag}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
                     </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="text-lg font-bold text-primary mb-1">{offer.payout_currency} {offer.payout_amount?.toFixed(2)}</div>
+                      <Button 
+                        size="sm" 
+                        className="bg-primary hover:bg-primary-hover text-white"
+                        onClick={() => navigate(`/offer/${offer.id}`)}
+                      >
+                        View
+                      </Button>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-primary mb-1">{offer.payout}</div>
-                    <Button 
-                      size="sm" 
-                      className="bg-primary hover:bg-primary-hover text-white"
-                      onClick={() => navigate(`/offer/${offer.id}`)}
-                    >
-                      View
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              ))
+            )}
           </div>
         </div>
 
-        {/* Premium Networks Sidebar */}
-        <div className="w-80">
+        {/* All Networks Sidebar */}
+        <div className="w-full lg:w-80 flex-shrink-0">
           <div className="bg-white rounded-lg border border-input-border overflow-hidden">
             <div className="p-4 border-b border-input-border">
               <h2 className="font-semibold text-foreground flex items-center gap-2">
-                ⭐ Premium Networks
+                ⭐ All Networks
               </h2>
             </div>
             <div className="space-y-0">
-              {premiumNetworks.map((network) => (
-                <div key={network.id} className="p-4 border-b border-input-border last:border-b-0 hover:bg-muted/30 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <img 
-                      src={network.logo} 
-                      alt={network.name}
-                      className="w-12 h-12 rounded-full object-cover"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <h3 className="font-medium text-foreground truncate">{network.name}</h3>
-                        <Button size="sm" className="bg-primary hover:bg-primary-hover text-white text-xs px-3 py-1">
-                          Join
-                        </Button>
-                      </div>
-                      <div className="text-xs text-muted-foreground mb-1">
-                        {network.category} • {network.subcategory}
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>📊 {network.offers}</span>
-                        <span>💰 {network.frequency}</span>
+              {loadingNetworks ? (
+                <div className="text-center py-4 text-muted-foreground">Loading networks...</div>
+              ) : networksToDisplay.length === 0 ? (
+                <div className="text-center py-4 text-muted-foreground">No networks found.</div>
+              ) : (
+                networksToDisplay.map((network) => (
+                  <div key={network.id} className="p-4 border-b border-input-border last:border-b-0 hover:bg-muted/30 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <img 
+                        src={network.logo_url || `https://placehold.co/48x48/E0E0E0/ADADAD?text=${network.name.charAt(0)}`}
+                        alt={network.name}
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <h3 className="font-medium text-foreground truncate">{network.name}</h3>
+                          <Button size="sm" className="bg-primary hover:bg-primary-hover text-white text-xs px-3 py-1">
+                            Join
+                          </Button>
+                        </div>
+                        <div className="text-xs text-muted-foreground mb-1">
+                          {network.categories?.[0] || "N/A"} • {network.type}
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          {/* Display actual offer count */}
+                          <span>📊 {offersCountByNetwork[network.id] || 0} offers</span> 
+                          <span>💰 {network.payment_frequency}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
