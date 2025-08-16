@@ -11,8 +11,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Network, Offer, MasterData } from "@/types/admin";
+import { Banner } from "@/types/banner";
 import NetworkForm from "@/components/admin/NetworkForm";
 import OfferForm from "@/components/admin/OfferForm";
+import BannerForm from "@/components/admin/BannerForm";
+import BannerList from "@/components/admin/BannerList";
 import NetworkList from "@/components/admin/NetworkList";
 import OfferList from "@/components/admin/OfferList";
 
@@ -22,6 +25,8 @@ const Admin = () => {
   const [loading, setLoading] = useState(true);
   const [networks, setNetworks] = useState<Network[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
+  const [banners, setBanners] = useState<Banner[]>([]);
+  const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
   const [masterData, setMasterData] = useState<MasterData | null>(null);
 
   useEffect(() => {
@@ -69,6 +74,15 @@ const Admin = () => {
 
       if (offersError) throw offersError;
       setOffers(offersData || []);
+
+      // Load banners
+      const { data: bannersData, error: bannersError } = await supabase
+        .from('banners')
+        .select('*')
+        .order('priority_order', { ascending: false });
+
+      if (bannersError) throw bannersError;
+      setBanners(bannersData || []);
 
       // Load master data
       const { data: masterDataRes, error: masterError } = await supabase
@@ -122,6 +136,7 @@ const Admin = () => {
     setUser(null);
     setNetworks([]);
     setOffers([]);
+    setBanners([]);
     setMasterData(null);
   };
 
@@ -154,9 +169,10 @@ const Admin = () => {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="networks" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="networks">Networks</TabsTrigger>
             <TabsTrigger value="offers">Offers</TabsTrigger>
+            <TabsTrigger value="banners">Banners</TabsTrigger>
             <TabsTrigger value="add-network">Add Network</TabsTrigger>
             <TabsTrigger value="add-offer">Add Offer</TabsTrigger>
           </TabsList>
@@ -176,6 +192,26 @@ const Admin = () => {
               onUpdate={loadData}
               masterData={masterData}
             />
+          </TabsContent>
+
+          <TabsContent value="banners">
+            <div className="space-y-6">
+              {editingBanner ? (
+                <BannerForm 
+                  onSuccess={loadData}
+                  editingBanner={editingBanner}
+                  onCancelEdit={() => setEditingBanner(null)}
+                />
+              ) : banners.length < 2 ? (
+                <BannerForm onSuccess={loadData} />
+              ) : null}
+              
+              <BannerList 
+                banners={banners}
+                onUpdate={loadData}
+                onEdit={setEditingBanner}
+              />
+            </div>
           </TabsContent>
 
           <TabsContent value="add-network">

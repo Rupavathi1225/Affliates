@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";// Adjusted import path
+import { supabase } from "@/integrations/supabase/client"; // Consistent import path
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ChevronDown, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast"; // Assuming useToast is available
+import BannerDisplay from "@/components/BannerDisplay";
 
 // Define types for Network and Offer based on your Supabase schema
-// You might already have these defined in "@/types/admin"
 interface Network {
   id: string;
   name: string;
@@ -34,7 +34,7 @@ interface Offer {
   payout_amount: number;
   payout_currency: string;
   devices: string[];
-  vertical: string;
+  vertical: string[]; // Changed from string to string[]
   geo_targets: string[];
   tags: string[];
   image_url: string;
@@ -44,6 +44,7 @@ interface Offer {
   priority_order: number;
   // Relationship to network, assuming it's fetched directly
   networks?: {
+    id: string; // Added network ID for navigation
     name: string;
     logo_url: string;
   };
@@ -63,7 +64,7 @@ const Browse = () => {
   const [offersCountByNetwork, setOffersCountByNetwork] = useState<Record<string, number>>({});
   const [loadingOffers, setLoadingOffers] = useState(true);
   const [loadingNetworks, setLoadingNetworks] = useState(true);
-
+ 
   // Fetch all active offers from Supabase
   useEffect(() => {
     const fetchOffers = async () => {
@@ -71,7 +72,7 @@ const Browse = () => {
       try {
         const { data, error } = await supabase
           .from('offers')
-          .select(`*, networks (name, logo_url)`) // Select all offer fields and joined network name/logo
+          .select(`*, networks (id, name, logo_url)`) // Select all offer fields and joined network name/logo/id
           .eq('is_active', true); // Only fetch active offers
 
         if (error) throw error;
@@ -130,8 +131,8 @@ const Browse = () => {
   // Derive unique categories, geos, and verticals from fetched data
   const networksOptions = ["All", ...new Set(allNetworks.map(n => n.name))];
   const geosOptions = ["Worldwide", ...new Set(allOffers.flatMap(o => o.geo_targets))];
-  const verticalsOptions = ["All", ...new Set(allOffers.map(o => o.vertical))];
-  const offerCategories = ["🔝 Top Offers", "All", ...new Set(allOffers.map(o => o.vertical))]; // Assuming vertical maps to category
+  const verticalsOptions = ["All", ...new Set(allOffers.map(o => o.vertical).flat())]; // Flatten array of arrays
+  const offerCategories = ["🔝 Top Offers", "All", ...new Set(allOffers.map(o => o.vertical).flat())]; // Flatten array of arrays
 
   const getFilteredOffers = () => {
     let filtered = allOffers.filter(offer => offer.is_active);
@@ -148,7 +149,7 @@ const Browse = () => {
 
     // Filter by selected vertical
     if (selectedVertical && selectedVertical !== "All") {
-      filtered = filtered.filter(offer => offer.vertical === selectedVertical);
+      filtered = filtered.filter(offer => (offer.vertical as string[]).includes(selectedVertical));
     }
 
     // Filter by offer category (vertical)
@@ -162,7 +163,7 @@ const Browse = () => {
         })
         .slice(0, 8); // Return top 8 offers
     } else if (selectedOfferCategory !== "All") {
-      filtered = filtered.filter(offer => offer.vertical === selectedOfferCategory);
+      filtered = filtered.filter(offer => (offer.vertical as string[]).includes(selectedOfferCategory));
     }
     
     // Default sorting for "All" or other categories
@@ -228,6 +229,8 @@ const Browse = () => {
 
   return (
     <div className="min-h-screen bg-gradient-background">
+      <BannerDisplay />
+      
       {/* Header with Filters */}
       <div className="bg-white border-b border-input-border px-6 py-4">
         <div className="flex items-center gap-4 flex-wrap">
@@ -290,6 +293,13 @@ const Browse = () => {
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <span className="text-sm text-muted-foreground">{offer.networks?.name || "Unknown Network"}</span>
                         <div className="flex gap-1 flex-wrap">
+                          {/* Display Geo Targets as badges */}
+                          {offer.geo_targets.map((geo, idx) => (
+                            <Badge key={idx} variant="outline" className="text-xs px-2 py-0.5">
+                              {geo}
+                            </Badge>
+                          ))}
+                          {/* Display existing tags as badges */}
                           {offer.tags.map((tag, idx) => (
                             <Badge key={idx} variant="secondary" className="text-xs px-2 py-0.5">
                               #{tag}
