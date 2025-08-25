@@ -22,6 +22,10 @@ interface BannerFormData {
   link_url?: string;
   section: string[]; // Now an array of strings
   size: string; // New field for banner size in "width x height" format
+   rotation_enabled?: boolean;
+  rotation_group?: string | null;        // e.g., "home-top" or "sidebar"
+  rotation_weight?: number | null;       // higher = show more often
+  rotation_duration_ms?: number | null; 
 }
 
 interface BannerFormProps {
@@ -43,13 +47,27 @@ export const BannerForm = ({ onSuccess, onCancel }: BannerFormProps) => {
     setValue,
     watch,
   } = useForm<BannerFormData>({
+    defaultValues: {
+      section: ["top"],
+      size: "",
+      rotation_enabled: false,
+      rotation_group: "",
+      rotation_weight: 1,
+      rotation_duration_ms: 5000,
+    },
     // Set default values for the new fields
-    defaultValues: { section: ["top"], size: "" }, // Resetting default size
+    // defaultValues: { section: ["top"], size: "" }, // Resetting default size
   });
 
   const imageUrl = watch("image_url");
   const sections = watch("section");
   const size = watch("size");
+    // NEW: rotation watches
+  const rotationEnabled = watch("rotation_enabled");
+  const rotationGroup = watch("rotation_group");
+  const rotationWeight = watch("rotation_weight");
+  const rotationDuration = watch("rotation_duration_ms");
+
 
   // Helper object to map sections to Tailwind CSS classes
   const sectionClasses = {
@@ -131,10 +149,11 @@ export const BannerForm = ({ onSuccess, onCancel }: BannerFormProps) => {
   };
 
   // ✅ Submit
+  // ✅ Submit (now rotation-aware)
   const onSubmit = async (data: BannerFormData) => {
     // We remove the size from the data being sent to the database
     const { size, ...bannerData } = data;
-    
+
     if (!bannerData.image_url && !uploadedImageUrl) {
       toast({
         title: "Error",
@@ -144,16 +163,41 @@ export const BannerForm = ({ onSuccess, onCancel }: BannerFormProps) => {
       return;
     }
 
+    // Compute safe rotation payload (only send values if rotation is enabled)
+    const rotation_enabled = !!bannerData.rotation_enabled;
+    const rotation_group =
+      rotation_enabled
+        ? (bannerData.rotation_group?.trim() ||
+           sections?.[0] || // fallback to first selected section
+           "default")
+        : null;
+
+    const rotation_weight =
+      rotation_enabled
+        ? (Number(bannerData.rotation_weight) > 0
+            ? Number(bannerData.rotation_weight)
+            : 1)
+        : null;
+
+    const rotation_duration_ms =
+      rotation_enabled
+        ? (Number(bannerData.rotation_duration_ms) > 0
+            ? Number(bannerData.rotation_duration_ms)
+            : 5000)
+        : null;
+
     setIsLoading(true);
     try {
-      // Use the uploaded image URL if available, otherwise use the URL from the input field
       const finalBannerData = {
         ...bannerData,
         image_url: uploadedImageUrl || bannerData.image_url,
+        rotation_enabled,
+        rotation_group,
+        rotation_weight,
+        rotation_duration_ms,
       };
 
       const { error } = await supabase.from("banners").insert([finalBannerData]);
-
       if (error) throw error;
 
       toast({
@@ -172,6 +216,7 @@ export const BannerForm = ({ onSuccess, onCancel }: BannerFormProps) => {
       setIsLoading(false);
     }
   };
+
 
   // Function to handle multi-select checkbox changes
   const handleSectionChange = (sectionName: string, isChecked: boolean) => {
@@ -419,6 +464,100 @@ export const BannerForm = ({ onSuccess, onCancel }: BannerFormProps) => {
               placeholder="https://example.com/target-page"
             />
           </div>
+                    {/* Link URL */}
+          <div>
+            <Label htmlFor="link_url">Link URL (Optional)</Label>
+            <Input
+              id="link_url"
+              {...register("link_url")}
+              placeholder="https://example.com/target-page"
+            />
+          </div>
+
+          {/* === NEW: Rotation Options === */}
+          <div className="rounded-lg border p-4 space-y-3">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="rotation_enabled"
+                checked={!!rotationEnabled}
+                onCheckedChange={(checked) =>
+                  setValue("rotation_enabled", !!checked)
+                }
+              />
+              <Label htmlFor="rotation_enabled" className="font-medium">
+                Rotate this banner
+              </Label>
+            </div>
+
+            {/* Show the rest only when rotation is enabled */}
+            {rotationEnabled && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="rotation_group">Rotation Group</Label>
+                  <Input
+                    id="rotation_group"
+                    placeholder='e.g., "home-top" or "sidebar"'
+                    {...register("rotation_group", {
+                      required: rotationEnabled
+                        ? "Rotation group is required"
+                        : false,
+                    })}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Banners with the same group will rotate together.
+                    If left blank, it falls back to the first selected section.
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="rotation_weight">Weight</Label>
+                  <Input
+                    id="rotation_weight"
+                    type="number"
+                    min={1}
+                    step={1}
+                    placeholder="1"
+                    {...register("rotation_weight", {
+                      valueAsNumber: true,
+                      min: { value: 1, message: "Minimum weight is 1" },
+                    })}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Higher weight = shows more often in the rotation.
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="rotation_duration_ms">Duration (ms)</Label>
+                  <Input
+                    id="rotation_duration_ms"
+                    type="number"
+                    min={1000}
+                    step={500}
+                    placeholder="5000"
+                    {...register("rotation_duration_ms", {
+                      valueAsNumber: true,
+                      min: { value: 1000, message: "Minimum is 1000 ms" },
+                    })}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    How long each banner stays visible (milliseconds).
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+          {/* === END Rotation Options === */}
+
+          <div className="flex space-x-2">
+            <Button type="submit" disabled={isLoading || sections.length === 0}>
+              {isLoading ? "Creating..." : "Create Banner"}
+            </Button>
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+          </div>
+
 
           <div className="flex space-x-2">
             <Button type="submit" disabled={isLoading || sections.length === 0}>
