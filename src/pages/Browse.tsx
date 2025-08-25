@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ChevronDown, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import BannerDisplay from "@/components/BannerDisplay";
 
 interface Network {
   id: string;
@@ -48,6 +47,124 @@ interface Offer {
   };
 }
 
+// New interfaces for banners to match the database structure
+interface Banner {
+  id: string;
+  image_url: string;
+  link_url?: string;
+  section: string[];
+  created_at: string;
+  title?: string;
+}
+
+// Hook for rotating banners
+const useRotatingBanners = (banners: Banner[], intervalMs: number = 5000) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    if (banners.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setCurrentIndex((prevIndex) => (prevIndex + 1) % banners.length);
+    }, intervalMs);
+
+    return () => clearInterval(interval);
+  }, [banners.length, intervalMs]);
+
+  return banners.length > 0 ? banners[currentIndex] : null;
+};
+
+// Centralized component to display banners with rotation
+const BannerDisplay = ({ banners, section }: { banners: Banner[], section: "top" | "footer" | "sidebar" | "fixed-top" | "fixed-bottom" }) => {
+  const currentBanner = useRotatingBanners(banners);
+  
+  if (!currentBanner) return null;
+
+  const isSidebar = section === "sidebar";
+  const isFixed = section === "fixed-top" || section === "fixed-bottom";
+
+  let containerClass = "";
+  let imageClass = "";
+
+  switch (section) {
+    case "fixed-top":
+      containerClass = "fixed top-0 left-0 right-0 z-50 bg-white shadow-md";
+      imageClass = "w-full h-20 object-cover";
+      break;
+    case "fixed-bottom":
+      containerClass = "fixed bottom-0 left-0 right-0 z-50 bg-white shadow-md";
+      imageClass = "w-full h-20 object-cover";
+      break;
+    case "sidebar":
+      containerClass = "mb-4";
+      imageClass = "w-full h-[400px] object-contain";
+      break;
+    case "top":
+      containerClass = "my-6";
+      imageClass = "w-full h-32 object-cover";
+      break;
+    case "footer":
+      containerClass = "my-6";
+      imageClass = "w-full h-20 object-cover";
+      break;
+  }
+
+  return (
+    <div className={containerClass}>
+      <a
+        href={currentBanner.link_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block w-full"
+      >
+        <img
+          src={currentBanner.image_url}
+          alt={`${section} banner`}
+          className={`${imageClass} rounded-md`}
+        />
+      </a>
+      {/* Show rotation indicator if multiple banners */}
+      {banners.length > 1 && (
+        <div className="flex justify-center mt-2 space-x-1">
+          {banners.map((_, index) => (
+            <div
+              key={index}
+              className={`w-2 h-2 rounded-full transition-colors ${
+                index === banners.findIndex(b => b.id === currentBanner.id)
+                  ? "bg-primary"
+                  : "bg-gray-300"
+              }`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Sidebar banner component for vertical display
+const SidebarBannerDisplay = ({ banners }: { banners: Banner[] }) => {
+  return (
+    <div className="space-y-4">
+      {banners.map((banner) => (
+        <a
+          key={banner.id}
+          href={banner.link_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block w-full"
+        >
+          <img
+            src={banner.image_url}
+            alt="Sidebar banner"
+            className="w-full h-[400px] object-contain rounded-md"
+          />
+        </a>
+      ))}
+    </div>
+  );
+};
+
 const Browse = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -62,9 +179,8 @@ const Browse = () => {
   const [offersCountByNetwork, setOffersCountByNetwork] = useState<Record<string, number>>({});
   const [loadingOffers, setLoadingOffers] = useState(true);
   const [loadingNetworks, setLoadingNetworks] = useState(true);
-  const [allBanners, setAllBanners] = useState<any[]>([]);
+  const [allBanners, setAllBanners] = useState<Banner[]>([]);
   const [loadingBanners, setLoadingBanners] = useState(true);
-
 
   // Fetch ALL offers from Supabase without any filtering
   useEffect(() => {
@@ -77,7 +193,6 @@ const Browse = () => {
 
         if (error) throw error;
         
-        console.log('Fetched offers:', data?.length || 0); // Debug log
         setAllOffers(data || []);
 
         // Calculate offer counts by network
@@ -128,31 +243,32 @@ const Browse = () => {
     };
     fetchNetworks();
   }, [toast]);
+  
+  // Fetch banners from Supabase
   useEffect(() => {
-  const fetchBanners = async () => {
-    setLoadingBanners(true);
-    try {
-      const { data, error } = await supabase
-        .from("banners")
-        .select("*")
-        .order("priority_order", { ascending: false });
+    const fetchBanners = async () => {
+      setLoadingBanners(true);
+      try {
+        const { data, error } = await supabase
+          .from("banners")
+          .select("*")
+          .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setAllBanners(data || []);
-    } catch (error: any) {
-      console.error("Error fetching banners:", error.message);
-      toast({
-        title: "Error",
-        description: "Failed to load banners.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingBanners(false);
-    }
-  };
-  fetchBanners();
-}, [toast]);
-
+        if (error) throw error;
+        setAllBanners(data || []);
+      } catch (error: any) {
+        console.error("Error fetching banners:", error.message);
+        toast({
+          title: "Error",
+          description: "Failed to load banners.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingBanners(false);
+      }
+    };
+    fetchBanners();
+  }, [toast]);
 
   // Helper to check if value is placeholder
   const isPlaceholder = (value: any): boolean => {
@@ -241,94 +357,71 @@ const Browse = () => {
   ))];
 
   const getFilteredOffers = () => {
-    console.log('Total offers before filtering:', allOffers.length);
-    
-    // Start with ALL offers
     let filtered = [...allOffers];
 
-    // Apply network filter
     if (selectedNetworkFilter && selectedNetworkFilter !== "All") {
-      const beforeCount = filtered.length;
       filtered = filtered.filter(offer => {
         const networkName = getDisplayValue(offer.networks?.name);
         return networkName === selectedNetworkFilter;
       });
-      console.log(`Network filter "${selectedNetworkFilter}": ${beforeCount} -> ${filtered.length}`);
     }
 
-    // Apply geo filter
     if (selectedGeo && selectedGeo !== "Worldwide") {
-      const beforeCount = filtered.length;
       filtered = filtered.filter(offer => {
         const geoTargets = toStringArray(offer.geo_targets, false);
-        // If no valid geos (empty or all placeholders), show the offer for any geo filter
-        // OR if the offer has valid geos and one matches the selected geo
         return geoTargets.length === 0 || geoTargets.includes(selectedGeo);
       });
-      console.log(`Geo filter "${selectedGeo}": ${beforeCount} -> ${filtered.length}`);
     }
 
-    // Apply vertical filter
     if (selectedVertical && selectedVertical !== "All") {
-      const beforeCount = filtered.length;
       filtered = filtered.filter(offer => {
         const verticals = toStringArray(offer.vertical, false);
-        // If no valid verticals (empty or all placeholders), show the offer for any vertical filter
-        // OR if the offer has valid verticals and one matches the selected vertical
         return verticals.length === 0 || verticals.includes(selectedVertical);
       });
-      console.log(`Vertical filter "${selectedVertical}": ${beforeCount} -> ${filtered.length}`);
     }
 
-    // Apply category filter - FIXED: Show all offers, just change sorting
     if (selectedOfferCategory === "🔥 Top Offers") {
-      // Sort to show top offers first, but don't limit the total count
       filtered = filtered.sort((a, b) => {
-        // Active offers first
         if (a.is_active && !b.is_active) return -1;
         if (!a.is_active && b.is_active) return 1;
         
-        // Featured offers next
         if (a.is_featured && !b.is_featured) return -1;
         if (!a.is_featured && b.is_featured) return 1;
         
-        // Then by priority (higher priority first)
         const aPriority = typeof a.priority_order === 'number' ? a.priority_order : 0;
         const bPriority = typeof b.priority_order === 'number' ? b.priority_order : 0;
         return bPriority - aPriority;
       });
-      // Don't slice here - show all offers sorted by priority
     } else if (selectedOfferCategory !== "All") {
-      // Filter by specific category/vertical
-      const beforeCount = filtered.length;
       filtered = filtered.filter(offer => {
         const verticals = toStringArray(offer.vertical, false);
-        // If no valid verticals, don't match specific category filters (but do match "All")
         return verticals.includes(selectedOfferCategory);
       });
-      console.log(`Category filter "${selectedOfferCategory}": ${beforeCount} -> ${filtered.length}`);
     }
 
-    // Final sort for non-"Top Offers" categories: active first, then by priority
     if (selectedOfferCategory !== "🔥 Top Offers") {
       filtered = filtered.sort((a, b) => {
-        // Active offers first
         if (a.is_active && !b.is_active) return -1;
         if (!a.is_active && b.is_active) return 1;
         
-        // Then by priority (higher priority first)
         const aPriority = typeof a.priority_order === 'number' ? a.priority_order : 0;
         const bPriority = typeof b.priority_order === 'number' ? b.priority_order : 0;
         return bPriority - aPriority;
       });
     }
 
-    console.log('Final filtered offers:', filtered.length);
     return filtered;
   };
 
   const offersToDisplay = getFilteredOffers();
   const networksToDisplay = allNetworks.filter(n => n.is_active);
+
+  // Filter banners based on their section property
+  const fixedTopBanners = allBanners.filter(b => b.section && b.section.includes("fixed-top"));
+  const topBanners = allBanners.filter(b => b.section && b.section.includes("top"));
+  const sidebarBanners = allBanners.filter(b => b.section && b.section.includes("sidebar"));
+  const footerBanners = allBanners.filter(b => b.section && b.section.includes("footer"));
+  const fixedBottomBanners = allBanners.filter(b => b.section && b.section.includes("fixed-bottom"));
 
   const FilterDropdown = ({ title, options, selected, onSelect }: any) => {
     const [searchTerm, setSearchTerm] = useState("");
@@ -380,47 +473,57 @@ const Browse = () => {
       </div>
     );
   };
+  
   const BannersDropdown = () => {
-  return (
-    <div className="relative group">
-      <Button variant="outline" className="flex items-center gap-2 px-4 py-2 bg-white border-input-border hover:bg-muted transition-colors">
-        <span className="text-sm font-medium">Banners</span>
-        <ChevronDown className="w-4 h-4" />
-      </Button>
-      <div className="absolute top-full left-0 mt-1 w-72 bg-white border border-input-border rounded-lg shadow-lg z-50 hidden group-hover:block">
-        <div className="max-h-80 overflow-y-auto">
-          {loadingBanners ? (
-            <div className="p-3 text-muted-foreground text-sm">Loading banners...</div>
-          ) : allBanners.length === 0 ? (
-            <div className="p-3 text-muted-foreground text-sm">No banners found</div>
-          ) : (
-            allBanners.map((banner) => (
-              <a
-                key={banner.id}
-                href={banner.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors"
-              >
-                <img
-                  src={banner.image_url}
-                  alt={banner.title}
-                  className="w-12 h-12 object-cover rounded"
-                />
-                <span className="text-sm font-medium truncate">{banner.title}</span>
-              </a>
-            ))
-          )}
+    return (
+      <div className="relative group">
+        <Button variant="outline" className="flex items-center gap-2 px-4 py-2 bg-white border-input-border hover:bg-muted transition-colors">
+          <span className="text-sm font-medium">Banners</span>
+          <ChevronDown className="w-4 h-4" />
+        </Button>
+        <div className="absolute top-full left-0 mt-1 w-72 bg-white border border-input-border rounded-lg shadow-lg z-50 hidden group-hover:block">
+          <div className="max-h-80 overflow-y-auto">
+            {loadingBanners ? (
+              <div className="p-3 text-muted-foreground text-sm">Loading banners...</div>
+            ) : allBanners.length === 0 ? (
+              <div className="p-3 text-muted-foreground text-sm">No banners found</div>
+            ) : (
+              allBanners.map((banner) => (
+                <a
+                  key={banner.id}
+                  href={banner.link_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors"
+                >
+                  <img
+                    src={banner.image_url}
+                    alt={banner.title}
+                    className="w-12 h-12 object-cover rounded"
+                  />
+                  <span className="text-sm font-medium truncate">{banner.title}</span>
+                </a>
+              ))
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  );
-};
-
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-background">
-      <BannerDisplay />
+      {/* Fixed Top Banners */}
+      {fixedTopBanners.length > 0 && (
+        <BannerDisplay banners={fixedTopBanners} section="fixed-top" />
+      )}
+      
+      {/* Top Banners */}
+      {topBanners.length > 0 && (
+        <div className="p-6" style={{ marginTop: fixedTopBanners.length > 0 ? '80px' : '0' }}>
+          <BannerDisplay banners={topBanners} section="top" />
+        </div>
+      )}
       
       {/* Header with Filters */}
       <div className="bg-white border-b border-input-border px-6 py-4">
@@ -443,7 +546,7 @@ const Browse = () => {
             selected={selectedVertical}
             onSelect={setSelectedVertical}
           />
-            <BannersDropdown />  
+          <BannersDropdown />  
         </div>
       </div>
 
@@ -564,12 +667,22 @@ const Browse = () => {
                 </Card>
               ))
             )}
+            {/* Footer Banners */}
+            {footerBanners.length > 0 && (
+              <BannerDisplay banners={footerBanners} section="footer" />
+            )}
           </div>
         </div>
 
         {/* Networks Sidebar */}
         <div className="w-full lg:w-80 flex-shrink-0">
           <div className="bg-white rounded-lg border border-input-border overflow-hidden">
+            {/* Sidebar Banners */}
+            {sidebarBanners.length > 0 && (
+              <div className="p-4">
+                <SidebarBannerDisplay banners={sidebarBanners} />
+              </div>
+            )}
             <div className="p-4 border-b border-input-border">
               <h2 className="font-semibold text-foreground flex items-center gap-2">
                 All Networks
@@ -614,6 +727,14 @@ const Browse = () => {
           </div>
         </div>
       </div>
+      
+      {/* Fixed Bottom Banners */}
+      {fixedBottomBanners.length > 0 && (
+        <BannerDisplay banners={fixedBottomBanners} section="fixed-bottom" />
+      )}
+      
+      {/* Add bottom margin to prevent content being hidden behind fixed bottom banner */}
+      {fixedBottomBanners.length > 0 && <div className="h-20" />}
     </div>
   );
 };

@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "../../integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, X } from "lucide-react";
+import { Upload, X, Plus } from "lucide-react";
 import {
   Select,
   SelectTrigger,
@@ -14,11 +14,14 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
+// Define the new BannerFormData interface to support multiple sections and a size field
 interface BannerFormData {
   image_url: string;
   link_url?: string;
-  section: "top" | "footer" | "sidebar";
+  section: string[]; // Now an array of strings
+  size: string; // New field for banner size in "width x height" format
 }
 
 interface BannerFormProps {
@@ -40,11 +43,22 @@ export const BannerForm = ({ onSuccess, onCancel }: BannerFormProps) => {
     setValue,
     watch,
   } = useForm<BannerFormData>({
-    defaultValues: { section: "top" },
+    // Set default values for the new fields
+    defaultValues: { section: ["top"], size: "" }, // Resetting default size
   });
 
   const imageUrl = watch("image_url");
-  const section = watch("section");
+  const sections = watch("section");
+  const size = watch("size");
+
+  // Helper object to map sections to Tailwind CSS classes
+  const sectionClasses = {
+    top: "h-32 object-cover",
+    footer: "h-20 object-cover",
+    sidebar: "h-[400px] w-[400px] object-contain",
+    "fixed-top": "h-20 object-cover",
+    "fixed-bottom": "h-20 object-cover",
+  };
 
   // ✅ File Upload
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -118,7 +132,10 @@ export const BannerForm = ({ onSuccess, onCancel }: BannerFormProps) => {
 
   // ✅ Submit
   const onSubmit = async (data: BannerFormData) => {
-    if (!data.image_url && !uploadedImageUrl) {
+    // We remove the size from the data being sent to the database
+    const { size, ...bannerData } = data;
+    
+    if (!bannerData.image_url && !uploadedImageUrl) {
       toast({
         title: "Error",
         description: "Please provide an image URL or upload an image",
@@ -129,12 +146,13 @@ export const BannerForm = ({ onSuccess, onCancel }: BannerFormProps) => {
 
     setIsLoading(true);
     try {
-      const bannerData = {
-        ...data,
-        image_url: uploadedImageUrl || data.image_url,
+      // Use the uploaded image URL if available, otherwise use the URL from the input field
+      const finalBannerData = {
+        ...bannerData,
+        image_url: uploadedImageUrl || bannerData.image_url,
       };
 
-      const { error } = await supabase.from("banners").insert([bannerData]);
+      const { error } = await supabase.from("banners").insert([finalBannerData]);
 
       if (error) throw error;
 
@@ -155,6 +173,47 @@ export const BannerForm = ({ onSuccess, onCancel }: BannerFormProps) => {
     }
   };
 
+  // Function to handle multi-select checkbox changes
+  const handleSectionChange = (sectionName: string, isChecked: boolean) => {
+    let updatedSections = [...sections];
+    if (isChecked) {
+      updatedSections.push(sectionName);
+    } else {
+      updatedSections = updatedSections.filter((s) => s !== sectionName);
+    }
+    setValue("section", updatedSections);
+    
+    // If the sidebar is selected, update the size field accordingly and disable it.
+    if (updatedSections.includes("sidebar")) {
+        setValue("size", "400x400");
+    } else if (updatedSections.includes("fixed-top") || updatedSections.includes("fixed-bottom")) {
+        setValue("size", "1200x80");
+    } else {
+        setValue("size", ""); // Reset size when sidebar is deselected
+    }
+  };
+  
+  // Determine which preview style to use based on selected sections and size
+  let previewStyles = "";
+  let dynamicStyles = {};
+  if (sections.includes("sidebar")) {
+    previewStyles = sectionClasses.sidebar;
+  } else if (sections.includes("fixed-top") || sections.includes("fixed-bottom")) {
+    previewStyles = sectionClasses["fixed-top"];
+  } else if (sections.includes("top") || sections.includes("footer")) {
+    // Parse width and height from the size string
+    const [width, height] = (size || "auto").split("x").map(Number);
+    
+    // Apply Tailwind CSS classes for width and height dynamically
+    dynamicStyles = {
+        width: isNaN(width) ? '100%' : `${width}px`,
+        height: isNaN(height) ? 'auto' : `${height}px`,
+    };
+    
+    // Use `object-cover` to maintain aspect ratio
+    previewStyles = `object-cover`;
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -162,22 +221,78 @@ export const BannerForm = ({ onSuccess, onCancel }: BannerFormProps) => {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {/* Section Selection */}
+          {/* Section Selection (Updated to multi-select checkboxes) */}
           <div>
             <Label>Banner Section</Label>
-            <Select
-              defaultValue="top"
-              onValueChange={(val) => setValue("section", val as any)}
-            >
-              <SelectTrigger className="w-full mt-1">
-                <SelectValue placeholder="Choose section" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="top">Top Section</SelectItem>
-                <SelectItem value="footer">Footer Section</SelectItem>
-                <SelectItem value="sidebar">Sidebar (400x400)</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-col space-y-2 mt-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="section-fixed-top"
+                  checked={sections.includes("fixed-top")}
+                  onCheckedChange={(checked) => handleSectionChange("fixed-top", !!checked)}
+                />
+                <Label htmlFor="section-fixed-top">Fixed Top (1200x80)</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="section-top"
+                  checked={sections.includes("top")}
+                  onCheckedChange={(checked) => handleSectionChange("top", !!checked)}
+                />
+                <Label htmlFor="section-top">Top Section</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="section-footer"
+                  checked={sections.includes("footer")}
+                  onCheckedChange={(checked) => handleSectionChange("footer", !!checked)}
+                />
+                <Label htmlFor="section-footer">Footer Section</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="section-sidebar"
+                  checked={sections.includes("sidebar")}
+                  onCheckedChange={(checked) => handleSectionChange("sidebar", !!checked)}
+                />
+                <Label htmlFor="section-sidebar">Sidebar (400x400)</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="section-fixed-bottom"
+                  checked={sections.includes("fixed-bottom")}
+                  onCheckedChange={(checked) => handleSectionChange("fixed-bottom", !!checked)}
+                />
+                <Label htmlFor="section-fixed-bottom">Fixed Bottom (1200x80)</Label>
+              </div>
+            </div>
+            {sections.length === 0 && (
+              <p className="text-sm text-destructive mt-1">
+                Please select at least one section.
+              </p>
+            )}
+          </div>
+
+          {/* New Size Selection Field (Updated to a text input) */}
+          <div>
+            <Label>Banner Size (e.g., 400x400)</Label>
+            <Input
+              id="size"
+              {...register("size", {
+                required: "Size is required",
+                pattern: {
+                  value: /^\d+x\d+$/,
+                  message: "Format must be 'widthxheight' (e.g., 400x400)",
+                },
+              })}
+              placeholder="e.g., 800x200"
+              disabled={sections.includes("sidebar") || sections.includes("fixed-top") || sections.includes("fixed-bottom")}
+            />
+            {errors.size && (
+              <p className="text-sm text-destructive mt-1">
+                {errors.size.message}
+              </p>
+            )}
           </div>
 
           {/* Upload Method */}
@@ -243,11 +358,8 @@ export const BannerForm = ({ onSuccess, onCancel }: BannerFormProps) => {
                   <img
                     src={previewImage}
                     alt="Banner preview"
-                    className={`w-full ${
-                      section === "sidebar"
-                        ? "h-[400px] w-[400px] object-contain"
-                        : "h-32 object-cover"
-                    } rounded-md border`}
+                    className={`${previewStyles} rounded-md border`}
+                    style={dynamicStyles}
                   />
                   <Button
                     type="button"
@@ -287,11 +399,8 @@ export const BannerForm = ({ onSuccess, onCancel }: BannerFormProps) => {
                   <img
                     src={imageUrl}
                     alt="Banner preview"
-                    className={`w-full ${
-                      section === "sidebar"
-                        ? "h-[400px] w-[400px] object-contain"
-                        : "h-32 object-cover"
-                    } rounded-md border`}
+                    className={`${previewStyles} rounded-md border`}
+                    style={dynamicStyles}
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = "none";
                     }}
@@ -312,7 +421,7 @@ export const BannerForm = ({ onSuccess, onCancel }: BannerFormProps) => {
           </div>
 
           <div className="flex space-x-2">
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading || sections.length === 0}>
               {isLoading ? "Creating..." : "Create Banner"}
             </Button>
             <Button type="button" variant="outline" onClick={onCancel}>
