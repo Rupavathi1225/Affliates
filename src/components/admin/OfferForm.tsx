@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client"; // Adjusted import path to a common relative path
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,18 +15,10 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Network, Offer, MasterData } from "@/types/admin";
+// The direct import for xlsx is removed, as it's loaded via CDN
+// import * as XLSX from "xlsx"; 
 
-declare const XLSX: any;
-declare const supabase: any;
-
-// IMPORTANT: Replace with your actual Supabase URL and Anon Key
-const SUPABASE_URL = 'YOUR_SUPABASE_URL'; 
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
-
-// Add a check to ensure Supabase URL and Key are not placeholders
-if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY') {
-  console.error("Supabase credentials are not configured. Please replace 'YOUR_SUPABASE_URL' and 'YOUR_SUPABASE_ANON_KEY' with your actual Supabase project details.");
-}
+declare const XLSX: any; // Declare XLSX to avoid TypeScript errors if loaded from CDN
 
 interface OfferFormProps {
   onSuccess: () => void;
@@ -38,93 +31,17 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [fileLoading, setFileLoading] = useState(false);
-  const [supabaseClient, setSupabaseClient] = useState<any>(null);
 
-  // Helper functions for handling ## placeholders
-  const isPlaceholder = (value: any): boolean => {
-    return !value || value === "##" || value === "null" || value === "undefined" || value === "";
-  };
-
-  const parseArrayFromOffer = (field: any): string => {
-    if (isPlaceholder(field)) return "";
-    
-    if (Array.isArray(field)) {
-      const filtered = field.filter(v => v && v !== "##" && v !== "null" && v !== "undefined");
-      return filtered.join(", ");
-    }
-    
-    if (typeof field === 'string') {
-      try {
-        // Try to parse as JSON
-        if (field.startsWith('[') && field.endsWith(']')) {
-          const parsed = JSON.parse(field);
-          if (Array.isArray(parsed)) {
-            const filtered = parsed.filter(v => v && v !== "##" && v !== "null" && v !== "undefined");
-            return filtered.join(", ");
-          }
-        }
-        // Handle comma-separated
-        if (field.includes(',')) {
-          const filtered = field.split(',').map(v => v.trim()).filter(v => v && v !== "##" && v !== "null" && v !== "undefined");
-          return filtered.join(", ");
-        }
-        // Single value
-        return field === "##" || field === "null" || field === "undefined" ? "" : field;
-      } catch (error) {
-        return "";
-      }
-    }
-    
-    return "";
-  };
-
-  // Load XLSX and Supabase from CDN if they are not already loaded
+  // Load XLSX from CDN if it's not already loaded
   useEffect(() => {
-    // Load XLSX
     if (typeof XLSX === 'undefined') {
-      const scriptXLSX = document.createElement('script');
-      scriptXLSX.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js';
-      scriptXLSX.onload = () => console.log('XLSX loaded from CDN');
-      scriptXLSX.onerror = (e) => console.error('Error loading XLSX:', e);
-      document.head.appendChild(scriptXLSX);
-    }
-
-    // Load Supabase (if not already loaded globally or via another means)
-    if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
-      const scriptSupabase = document.createElement('script');
-      scriptSupabase.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
-      scriptSupabase.onload = () => {
-        console.log('Supabase loaded from CDN');
-        if (window.supabase && window.supabase.createClient) {
-          const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-          setSupabaseClient(client);
-        } else {
-          console.error("Supabase client not available after loading script.");
-          toast({
-            title: "Error",
-            description: "Supabase library not initialized. Check CDN link.",
-            variant: "destructive",
-          });
-        }
-      };
-      scriptSupabase.onerror = (e) => console.error('Error loading Supabase:', e);
-      document.head.appendChild(scriptSupabase);
-    } else {
-      const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      setSupabaseClient(client);
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js';
+      script.onload = () => console.log('XLSX loaded from CDN');
+      script.onerror = (e) => console.error('Error loading XLSX:', e);
+      document.head.appendChild(script);
     }
   }, []);
-
-  // Check Supabase config on component mount
-  useEffect(() => {
-    if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY') {
-      toast({
-        title: "Configuration Error",
-        description: "Please update Supabase URL and Anon Key in OfferForm.tsx.",
-        variant: "destructive",
-      });
-    }
-  }, [toast]);
 
   const [formData, setFormData] = useState({
     name: offer?.name || "",
@@ -132,10 +49,10 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
     type: offer?.type || "",
     payout_amount: offer?.payout_amount || 0,
     payout_currency: offer?.payout_currency || "USD",
-    devices: parseArrayFromOffer(offer?.devices),
-    vertical: parseArrayFromOffer(offer?.vertical),
-    geo_targets: parseArrayFromOffer(offer?.geo_targets),
-    tags: parseArrayFromOffer(offer?.tags),
+    devices: offer?.devices?.join(", ") || "",
+    vertical: Array.isArray(offer?.vertical) ? offer?.vertical.join(", ") : (offer?.vertical || ""),
+    geo_targets: offer?.geo_targets?.join(", ") || "",
+    tags: offer?.tags?.join(", ") || "",
     image_url: offer?.image_url || "",
     landing_page_url: offer?.landing_page_url || "",
     is_active: offer?.is_active ?? true,
@@ -143,55 +60,36 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
     priority_order: offer?.priority_order || 0,
   });
 
-  // Helper to process form data before submission
-  const processFormData = (data: any) => {
-    return {
-      name: data.name || "##",
-      network_id: data.network_id || "##",
-      type: data.type || "##",
-      payout_amount: data.payout_amount !== null && data.payout_amount !== undefined && !isNaN(Number(data.payout_amount)) 
-                     ? Number(data.payout_amount) 
-                     : 0,
-      payout_currency: data.payout_currency || "USD",
-      devices: data.devices ? data.devices.split(",").map((s: string) => s.trim()).filter((s: string) => s) : ["##"],
-      vertical: data.vertical ? data.vertical.split(",").map((s: string) => s.trim()).filter((s: string) => s) : ["##"],
-      geo_targets: data.geo_targets ? data.geo_targets.split(",").map((s: string) => s.trim()).filter((s: string) => s) : ["##"],
-      tags: data.tags ? data.tags.split(",").map((s: string) => s.trim()).filter((s: string) => s) : ["##"],
-      image_url: data.image_url || "##",
-      landing_page_url: data.landing_page_url || "##",
-      is_active: data.is_active,
-      is_featured: data.is_featured,
-      priority_order: data.priority_order !== null && data.priority_order !== undefined && !isNaN(Number(data.priority_order)) 
-                      ? Number(data.priority_order) 
-                      : 0,
-    };
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    if (!supabaseClient) {
-      toast({
-        title: "Error",
-        description: "Supabase client not initialized. Cannot save offer.",
-        variant: "destructive",
-      });
-      setLoading(false);
-      return;
-    }
-
     try {
-      const offerData = processFormData(formData);
+      const offerData = {
+        name: formData.name,
+        network_id: formData.network_id,
+        type: formData.type,
+        payout_amount: formData.payout_amount || null,
+        payout_currency: formData.payout_currency,
+        devices: formData.devices ? formData.devices.split(",").map(s => s.trim()) : [],
+        vertical: formData.vertical ? formData.vertical.split(",").map(s => s.trim()) : [],
+        geo_targets: formData.geo_targets ? formData.geo_targets.split(",").map(s => s.trim()) : [],
+        tags: formData.tags ? formData.tags.split(",").map(s => s.trim()) : [],
+        image_url: formData.image_url || null,
+        landing_page_url: formData.landing_page_url || null,
+        is_active: formData.is_active,
+        is_featured: formData.is_featured,
+        priority_order: formData.priority_order,
+      };
 
       let result;
       if (offer) {
-        result = await supabaseClient
+        result = await supabase
           .from('offers')
           .update(offerData)
           .eq('id', offer.id);
       } else {
-        result = await supabaseClient
+        result = await supabase
           .from('offers')
           .insert([offerData]);
       }
@@ -235,44 +133,8 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
     }
   };
 
-  const processImportedData = (data: any[]) => {
-    return data.map((row) => ({
-      name: row.name || row.Name || "##",
-      network_id: row.network_id || row.NetworkID || "##",
-      type: row.type || row.Type || "##",
-      payout_amount: row.payout_amount ? parseFloat(row.payout_amount) : 0,
-      payout_currency: row.payout_currency || "USD",
-      devices: row.devices ? 
-        row.devices.split(",").map((d: string) => d.trim()).filter((d: string) => d) : 
-        ["##"],
-      vertical: row.vertical ? 
-        row.vertical.split(",").map((v: string) => v.trim()).filter((v: string) => v) : 
-        ["##"],
-      geo_targets: row.geo_targets ? 
-        row.geo_targets.split(",").map((g: string) => g.trim()).filter((g: string) => g) : 
-        ["##"],
-      tags: row.tags ? 
-        row.tags.split(",").map((t: string) => t.trim()).filter((t: string) => t) : 
-        ["##"],
-      image_url: row.image_url || "##",
-      landing_page_url: row.landing_page_url || "##",
-      is_active: row.is_active?.toString().toLowerCase() === "true",
-      is_featured: row.is_featured?.toString().toLowerCase() === "true",
-      priority_order: row.priority_order ? parseInt(row.priority_order) : 0,
-    }));
-  };
-
   const handleGoogleSheetImport = async () => {
     setFileLoading(true);
-    if (!supabaseClient) {
-      toast({
-        title: "Error",
-        description: "Supabase client not initialized. Cannot import offers.",
-        variant: "destructive",
-      });
-      setFileLoading(false);
-      return;
-    }
     try {
       if (typeof XLSX === 'undefined') {
         console.error("XLSX is not loaded. Please wait or check CDN.");
@@ -293,9 +155,24 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
       const sheetName = workbook.SheetNames[0];
       const jsonData: any[] = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-      const formattedData = processImportedData(jsonData);
+      const formattedData = jsonData.map((row) => ({
+        name: row.name || row.Name || "",
+        network_id: row.network_id || row.NetworkID || "",
+        type: row.type || row.Type || "",
+        payout_amount: parseFloat(row.payout_amount) || 0,
+        payout_currency: row.payout_currency || "USD",
+        devices: row.devices ? row.devices.split(",").map((d: string) => d.trim()) : [],
+        vertical: row.vertical ? row.vertical.split(",").map((v: string) => v.trim()) : [],
+        geo_targets: row.geo_targets ? row.geo_targets.split(",").map((g: string) => g.trim()) : [],
+        tags: row.tags ? row.tags.split(",").map((t: string) => t.trim()) : [],
+        image_url: row.image_url || "",
+        landing_page_url: row.landing_page_url || "",
+        is_active: row.is_active?.toString().toLowerCase() === "true",
+        is_featured: row.is_featured?.toString().toLowerCase() === "true",
+        priority_order: parseInt(row.priority_order) || 0,
+      }));
 
-      const { error } = await supabaseClient.from("offers").insert(formattedData);
+      const { error } = await supabase.from("offers").insert(formattedData);
       if (error) throw error;
 
       toast({
@@ -321,15 +198,6 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
     if (!file) return;
 
     setFileLoading(true);
-    if (!supabaseClient) {
-      toast({
-        title: "Error",
-        description: "Supabase client not initialized. Cannot upload offers.",
-        variant: "destructive",
-      });
-      setFileLoading(false);
-      return;
-    }
     try {
       if (typeof XLSX === 'undefined') {
         console.error("XLSX is not loaded. Please wait or check CDN.");
@@ -346,9 +214,25 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet);
 
-      const formattedData = processImportedData(jsonData);
+    const formattedData = jsonData.map((row) => ({
+      name: row.name || row.Name || "##",
+      network_id: row.network_id || row.NetworkID || "##",
+      type: row.type || row.Type || "##",
+      payout_amount: row.payout_amount ? parseFloat(row.payout_amount) : "##",
+      payout_currency: row.payout_currency || "##",
+      devices: row.devices ? row.devices.split(",").map((d: string) => d.trim()) : ["##"],
+      vertical: row.vertical || "##",   // 👈 fixed here
+      geo_targets: row.geo_targets ? row.geo_targets.split(",").map((g: string) => g.trim()) : ["##"],
+      tags: row.tags ? row.tags.split(",").map((t: string) => t.trim()) : ["##"],
+      image_url: row.image_url || "##",
+      landing_page_url: row.landing_page_url || "##",
+      is_active: row.is_active?.toString().toLowerCase() === "true",
+      is_featured: row.is_featured?.toString().toLowerCase() === "true",
+      priority_order: row.priority_order ? parseInt(row.priority_order) : "##",
+    }));
     
-      const { error } = await supabaseClient.from("offers").insert(formattedData);
+    
+      const { error } = await supabase.from("offers").insert(formattedData);
       if (error) throw error;
 
       toast({
@@ -366,7 +250,7 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
       });
     } finally {
       setFileLoading(false);
-      if (event.target) event.target.value = "";
+      if (event.target) event.target.value = ""; // reset file input
     }
   };
 
@@ -378,30 +262,32 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
       <CardContent>
         {/* Bulk Upload Section - Only for creating new offers */}
         {!offer && (
-          <div className="mb-4 space-y-2">
-            <Label>Bulk Upload Options</Label>
-            <Input
-              id="file_upload"
-              type="file"
-              accept=".csv, .xlsx"
-              onChange={handleFileUpload}
-              disabled={fileLoading}
-            />
-            <Button
-              type="button"
-              onClick={handleGoogleSheetImport}
-              disabled={fileLoading}
-              className="w-full"
-            >
-              {fileLoading ? "Importing..." : "Import from Google Sheet"}
-            </Button>
-            {fileLoading && (
-              <p className="text-sm text-gray-500 mt-1">Processing...</p>
-            )}
-          </div>
-        )}
+  <div className="mb-4 space-y-2">
+    <Label>Bulk Upload Options</Label>
+    <Input
+      id="file_upload"
+      type="file"
+      accept=".csv, .xlsx"
+      onChange={handleFileUpload}
+      disabled={fileLoading}
+    />
+    <Button
+      type="button"
+      onClick={handleGoogleSheetImport}
+      disabled={fileLoading}
+      className="w-full"
+    >
+      {fileLoading ? "Importing..." : "Import from Google Sheet"}
+    </Button>
+    {fileLoading && (
+      <p className="text-sm text-gray-500 mt-1">Processing...</p>
+    )}
+  </div>
+)}
+
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Your existing form fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Offer name */}
             <div>
@@ -410,7 +296,7 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter offer name"
+                required
               />
             </div>
             {/* Network */}
@@ -451,7 +337,7 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
                 </SelectContent>
               </Select>
             </div>
-            {/* Vertical */}
+            {/* Vertical - Changed from Select to Input */}
             <div>
               <Label htmlFor="vertical">Vertical (comma-separated)</Label>
               <Input
@@ -470,7 +356,6 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
                 step="0.01"
                 value={formData.payout_amount}
                 onChange={(e) => setFormData({ ...formData, payout_amount: parseFloat(e.target.value) || 0 })}
-                placeholder="0.00"
               />
             </div>
             {/* Payout Currency */}
@@ -500,7 +385,6 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
                 type="url"
                 value={formData.image_url}
                 onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                placeholder="https://example.com/image.jpg"
               />
             </div>
             {/* Landing Page URL */}
@@ -511,7 +395,6 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
                 type="url"
                 value={formData.landing_page_url}
                 onChange={(e) => setFormData({ ...formData, landing_page_url: e.target.value })}
-                placeholder="https://example.com/landing"
               />
             </div>
             {/* Priority Order */}
@@ -522,7 +405,6 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
                 type="number"
                 value={formData.priority_order}
                 onChange={(e) => setFormData({ ...formData, priority_order: parseInt(e.target.value) || 0 })}
-                placeholder="0"
               />
             </div>
           </div>
