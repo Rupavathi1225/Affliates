@@ -14,8 +14,9 @@ import { Network, Offer, MasterData } from "@/types/admin";
 import { Banner } from "@/types/banner";
 import NetworkForm from "@/components/admin/NetworkForm";
 import OfferForm from "@/components/admin/OfferForm";
-import BannerForm from "@/components/admin/BannerForm";
-import BannerList from "@/components/admin/BannerList";
+import { BannerForm } from "@/components/admin/BannerForm";
+import { BannerList } from "@/components/admin/BannerList";
+
 import NetworkList from "@/components/admin/NetworkList";
 import OfferList from "@/components/admin/OfferList";
 
