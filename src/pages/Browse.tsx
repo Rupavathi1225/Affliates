@@ -73,7 +73,7 @@ const Browse = () => {
         const { data, error } = await supabase
           .from('offers')
           .select(`*, networks (id, name, logo_url)`) // Select all offer fields and joined network name/logo/id
-          .eq('is_active', true); // Only fetch active offers
+          // .eq('is_active', true); // Only fetch active offers
 
         if (error) throw error;
         setAllOffers(data || []);
@@ -109,7 +109,7 @@ const Browse = () => {
         const { data, error } = await supabase
           .from('networks')
           .select('*')
-          .eq('is_active', true) // Only fetch active networks
+          // .eq('is_active', true) // Only fetch active networks
           .order('priority_order', { ascending: false }); // Order by priority
 
         if (error) throw error;

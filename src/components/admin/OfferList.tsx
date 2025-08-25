@@ -158,8 +158,21 @@ const OfferList = ({ offers, networks, onUpdate, masterData }: OfferListProps) =
                   )}
                   <Badge variant="outline">{offer.type}</Badge>
                   {offer.vertical && (
-                    <Badge variant="outline">{offer.vertical}</Badge>
+                    <Badge variant="outline">
+                      {(() => {
+                        try {
+                          // If it's a string that looks like JSON, parse it
+                          const val = typeof offer.vertical === "string" ? JSON.parse(offer.vertical) : offer.vertical;
+                          return Array.isArray(val) ? val.join(", ") : val;
+                        } catch {
+                          // fallback if parsing fails
+                          return offer.vertical;
+                        }
+                      })()}
+                    </Badge>
                   )}
+                  
+
                 </div>
                 
                 <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">

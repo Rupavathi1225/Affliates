@@ -215,22 +215,23 @@ const OfferForm = ({ onSuccess, networks, masterData, offer }: OfferFormProps) =
       const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet);
 
       const formattedData = jsonData.map((row) => ({
-        name: row.name || row.Name || "",
-        network_id: row.network_id || row.NetworkID || "",
-        type: row.type || row.Type || "",
-        payout_amount: parseFloat(row.payout_amount) || 0,
-        payout_currency: row.payout_currency || "USD",
-        devices: row.devices ? row.devices.split(",").map((d: string) => d.trim()) : [],
-        vertical: row.vertical ? row.vertical.split(",").map((v: string) => v.trim()) : [],
-        geo_targets: row.geo_targets ? row.geo_targets.split(",").map((g: string) => g.trim()) : [],
-        tags: row.tags ? row.tags.split(",").map((t: string) => t.trim()) : [],
-        image_url: row.image_url || "",
-        landing_page_url: row.landing_page_url || "",
+        name: row.name || row.Name || "##",
+        network_id: row.network_id || row.NetworkID || "##",
+        type: row.type || row.Type || "##",
+        payout_amount: row.payout_amount ? parseFloat(row.payout_amount) : "##",
+        payout_currency: row.payout_currency || "##",
+        devices: row.devices ? row.devices.split(",").map((d: string) => d.trim()) : ["##"],
+        vertical: row.vertical || "##",   // 👈 fixed here
+        geo_targets: row.geo_targets ? row.geo_targets.split(",").map((g: string) => g.trim()) : ["##"],
+        tags: row.tags ? row.tags.split(",").map((t: string) => t.trim()) : ["##"],
+        image_url: row.image_url || "##",
+        landing_page_url: row.landing_page_url || "##",
         is_active: row.is_active?.toString().toLowerCase() === "true",
         is_featured: row.is_featured?.toString().toLowerCase() === "true",
-        priority_order: parseInt(row.priority_order) || 0,
+        priority_order: row.priority_order ? parseInt(row.priority_order) : "##",
       }));
-
+      
+      
       const { error } = await supabase.from("offers").insert(formattedData);
       if (error) throw error;
 

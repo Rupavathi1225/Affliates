@@ -15,7 +15,7 @@ const BannerDisplay = () => {
         const { data, error } = await supabase
           .from('banners')
           .select('*')
-          .eq('is_active', true)
+          
           .order('priority_order', { ascending: false });
 
         if (error) throw error;
